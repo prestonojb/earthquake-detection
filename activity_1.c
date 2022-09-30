@@ -1,5 +1,6 @@
 #include <stdio.h> 
 #include <stdlib.h>
+#include <stdbool.h>
 #include "mpi.h"
 #include <math.h>
 #include <time.h>
@@ -18,13 +19,19 @@
 #define SHIFT_COL 1
 #define DISP 1
 
-int getIdByCoord(MPI_Comm comm, int y, int x);
+#define DIFF_IN_DISTANCE_THRESHOLD_IN_KM 100
+#define DIFF_IN_MAGNITUDE_THRESHOLD 100
+
 float float_rand(float min, float max) ;
+bool areMatchingReadings(float* readingA, float* readingB);
+bool areMatchingLocations(float latA, float longA, float latB, float longB);
+bool areMatchingMagnitudes(float magnitudeA, float magnitudeB);
 void getCurrentDatetime(int* currentDatetime);
 void getReadings(float* readings);
+void printReadings(int rank, float* readings);
 double deg2rad(double);
 double rad2deg(double);
-double distance(double lat1, double lon1, double lat2, double lon2, char unit);
+float distance(float lat1, float lon1, float lat2, float lon2);
 
 int main(int argc, char* argv[]) {
   // Initialise MPI
@@ -72,9 +79,6 @@ int main(int argc, char* argv[]) {
   //   }
   // }
 
-  /* Magnitude exceeds predefined threshold 
-  */
-
   int left_rank, right_rank, top_rank, bottom_rank;
   MPI_Cart_shift(comm, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
   MPI_Cart_shift(comm, SHIFT_COL, DISP, &left_rank, &right_rank);
@@ -84,85 +88,114 @@ int main(int argc, char* argv[]) {
   MPI_Status send_status[4];
   MPI_Status receive_status[4];
 
-  MPI_Isend(1, 10, MPI_FLOAT, top_rank, 0, comm, &send_request[0]);
+  float magnitude = readings[8];
+  int compare_readings = 0;
+  if (magnitude > MAGNITUDE_UPPER_THRESHOLD) {
+    compare_readings = 1;
+  }
+  // if (rank == 0) {
+  //   compare_readings = 1;
+  // }
 
-  // Share all readings to neighbouring nodes
-  MPI_Isend(readings, 10, MPI_FLOAT, top_rank, 0, comm, &send_request[0]);
-  MPI_Isend(readings, 10, MPI_FLOAT, bottom_rank, 0, comm, &send_request[1]);
-  MPI_Isend(readings, 10, MPI_FLOAT, left_rank, 0, comm, &send_request[2]);
-  MPI_Isend(readings, 10, MPI_FLOAT, right_rank, 0, comm, &send_request[3]);
-
-  float* readingsT = calloc(10, sizeof(float));
-  float* readingsB = calloc(10, sizeof(float));
-  float* readingsL = calloc(10, sizeof(float));
-  float* readingsR = calloc(10, sizeof(float));
-
-  MPI_Irecv(readingsT, 10, MPI_FLOAT, top_rank, 0, comm, &receive_request[0]);
-  MPI_Irecv(readingsB, 10, MPI_FLOAT, bottom_rank, 0, comm, &receive_request[1]);
-  MPI_Irecv(readingsL, 10, MPI_FLOAT, left_rank, 0, comm, &receive_request[2]);
-  MPI_Irecv(readingsR, 10, MPI_FLOAT, right_rank, 0, comm, &receive_request[3]);
+  // Request reading from adjacent nodes
+  MPI_Isend(&compare_readings, 1, MPI_INT, top_rank, 0, comm, &send_request[0]);
+  MPI_Isend(&compare_readings, 1, MPI_INT, bottom_rank, 0, comm, &send_request[1]);
+  MPI_Isend(&compare_readings, 1, MPI_INT, left_rank, 0, comm, &send_request[2]);
+  MPI_Isend(&compare_readings, 1, MPI_INT, right_rank, 0, comm, &send_request[3]);
+  
+  int compare_readings_T = -1, compare_readings_B = -1, compare_readings_L = -1, compare_readings_R = -1;
+  MPI_Irecv(&compare_readings_T, 1, MPI_INT, top_rank, 0, comm, &receive_request[0]);
+  MPI_Irecv(&compare_readings_B, 1, MPI_INT, bottom_rank, 0, comm, &receive_request[1]);
+  MPI_Irecv(&compare_readings_L, 1, MPI_INT, left_rank, 0, comm, &receive_request[2]);
+  MPI_Irecv(&compare_readings_R, 1, MPI_INT, right_rank, 0, comm, &receive_request[3]);
 
   MPI_Waitall(4, send_request, send_status);
   MPI_Waitall(4, receive_request, receive_status);
 
-  float magnitude = readings[8];
-  if (magnitude > MAGNITUDE_UPPER_THRESHOLD) {
-    
+  // if (rank == 0) {
+  //   printf("Rank %d => Compare readings T: %d \n", rank, compare_readings_T);
+  //   printf("Rank %d => Compare readings B: %d \n", rank, compare_readings_B);
+  //   printf("Rank %d => Compare readings L: %d \n", rank, compare_readings_L);
+  //   printf("Rank %d => Compare readings R: %d \n", rank, compare_readings_R);
+  // }
+
+  // Send readings to adjacent nodes (if requested)
+  if (compare_readings_T == 1) {
+    MPI_Isend(readings, 10, MPI_FLOAT, top_rank, 0, comm, &send_request[0]);
+  }
+  if (compare_readings_B == 1) {
+    MPI_Isend(readings, 10, MPI_FLOAT, bottom_rank, 0, comm, &send_request[1]);
+  }
+  if (compare_readings_L == 1) {
+    MPI_Isend(readings, 10, MPI_FLOAT, left_rank, 0, comm, &send_request[2]);
+  }
+  if (compare_readings_R == 1) {
+    MPI_Isend(readings, 10, MPI_FLOAT, right_rank, 0, comm, &send_request[3]);
   }
 
-  // if(rank == 2) {
-  //   // printf("Rank %d's Top sensor magnitude: %f \n", rank, recvBufT[8]);
-  //   // printf("Rank %d's Bottom sensor magnitude: %f \n", rank, recvBufB[8]);
-  //   // printf("Rank %d's Left sensor magnitude: %f \n", rank, recvBufL[8]);
-  //   // printf("Rank %d's Right sensor magnitude: %f \n", rank, recvBufR[8]);
-
-  //   for(int i=0; i<10; i++) {
-  //     printf("Rank %d => recvBufT[%d]: %f \n", rank, i, recvBufT[i]);
-  //   }
-  //   for(int i=0; i<10; i++) {
-  //     printf("Rank %d => recvBufB[%d]: %f \n", rank, i, recvBufB[i]);
-  //   }
-  //   for(int i=0; i<10; i++) {
-  //     printf("Rank %d => recvBufL[%d]: %f \n", rank, i, recvBufL[i]);
-  //   }
-  //   for(int i=0; i<10; i++) {
-  //     printf("Rank %d => recvBufR[%d]: %f \n", rank, i, recvBufR[i]);
-  //   }
+  // if (rank == 2) {
+  //   printf("Rank %d readings: ", rank);
+  //   printReadings(rank, readings);
+  //   printf("\n");
   // }
 
+  // Receive requested readings
+  if (compare_readings == 1) {
+    float* readingsT = calloc(10, sizeof(float));
+    float* readingsB = calloc(10, sizeof(float));
+    float* readingsL = calloc(10, sizeof(float));
+    float* readingsR = calloc(10, sizeof(float));
+    
+    MPI_Irecv(readingsT, 10, MPI_FLOAT, top_rank, 0, comm, &receive_request[0]);
+    MPI_Irecv(readingsB, 10, MPI_FLOAT, bottom_rank, 0, comm, &receive_request[1]);
+    MPI_Irecv(readingsL, 10, MPI_FLOAT, left_rank, 0, comm, &receive_request[2]);
+    MPI_Irecv(readingsR, 10, MPI_FLOAT, right_rank, 0, comm, &receive_request[3]);
+    
+    MPI_Waitall(4, send_request, send_status);
+    MPI_Waitall(4, receive_request, receive_status);
 
-  // int id;
-  // int x, y;
-  // x = coord[0]; y = coord[1];
+    // if (rank == 0) {
+      // printf("Own reading: ");
+      // printReadings(rank, readings);
+      // printf("\n");
 
-  // // Checks if magnitude over threshold
-  // float latitude = readings[0];
-  // float longitude = readings[1];
-  // float magnitude = readings[2];
+      // printf("readingsT: ");
+      // printReadings(rank, readingsT);
+      // printf("\n");
+      
+      // printf("readingsB: ");
+      // printReadings(rank, readingsB);
+      // printf("\n");
+      
+      // printf("readingsL: ");
+      // printReadings(rank, readingsL);
+      // printf("\n");
+      
+      // printf("readingsR: ");
+      // printReadings(rank, readingsR);
+      // printf("\n");
+    // }
 
+    int no_of_matches = 0;
+    if(compare_readings_T == 1&& areMatchingReadings(readings, readingsT)) no_of_matches++;
+    if(compare_readings_B == 1 && areMatchingReadings(readings, readingsB)) no_of_matches++;
+    if(compare_readings_L == 1 && areMatchingReadings(readings, readingsL)) no_of_matches++;
+    if(compare_readings_R == 1 && areMatchingReadings(readings, readingsR)) no_of_matches++;
 
-
-  // if(rank == 0)
-  // {
-  //   // getIdByCoord(comm, 1, 1);
-  //   double d = distance(40, 100, -45, -45, 'M');
-  //   printf("distance: %f", d);
-  // }
+    if(no_of_matches >= 2) {
+      // Send report to base station #TODO
+      printReadings(rank, readings);
+    }
+  }
 
 	MPI_Finalize();
   return 0;
 }
 
-// Returns -2 if neighbour node out of bounds
-int getIdByCoord(MPI_Comm comm, int y, int x) {
-  int id;
-  int coord[2] = {y, x};
-  
-  MPI_Cart_rank(comm, coord, &id);
-  printf("The processor at position (%d, %d) has rank %d\n", coord[0], coord[1], id);
-  fflush(stdout);
-
-  return id;
+void printReadings(int rank, float* readings) {
+  for(int i=0; i<10; i++) {
+    printf("Rank %d => readings[%d]: %f \n", rank, i, readings[i]);
+  }
 }
 
 // Readings = [YYYY, MM, DD, HH, MM, SS, latitude, longitude, magnitude, depth]
@@ -192,6 +225,26 @@ void getReadings(float* readings) {
   readings[9] = depth;
 }
 
+bool areMatchingReadings(float* readingA, float* readingB) {
+  float latA = readingA[6];
+  float longA = readingA[7];
+  float latB = readingA[6];
+  float longB = readingA[7];
+
+  float magnitudeA = readingA[8];
+  float magnitudeB = readingB[8];
+
+  return areMatchingLocations(latA, longA, latB, longB) && areMatchingMagnitudes(magnitudeA, magnitudeB);
+}
+
+bool areMatchingLocations(float latA, float longA, float latB, float longB) {
+  return distance(latA, longA, latB, longB) < DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
+}
+
+bool areMatchingMagnitudes(float magnitudeA, float magnitudeB) {
+  return fabs((double) magnitudeA - magnitudeB) < DIFF_IN_MAGNITUDE_THRESHOLD;
+}
+
 /* generate a random floating point number from min to max */
 float float_rand(float min, float max) 
 {
@@ -200,8 +253,8 @@ float float_rand(float min, float max)
     return min + (rand() / div);
 }
 
-double distance(double lat1, double lon1, double lat2, double lon2, char unit) {
-  double theta, dist;
+float distance(float lat1, float lon1, float lat2, float lon2) {
+  float theta, dist;
   if ((lat1 == lat2) && (lon1 == lon2)) {
     return 0;
   }
@@ -211,17 +264,7 @@ double distance(double lat1, double lon1, double lat2, double lon2, char unit) {
     dist = acos(dist);
     dist = rad2deg(dist);
     dist = dist * 60 * 1.1515;
-    switch(unit) {
-      case 'M':
-        break;
-      case 'K':
-        dist = dist * 1.609344;
-        break;
-      case 'N':
-        dist = dist * 0.8684;
-        break;
-    }
-    return (dist);
+    return dist * 1.609344;
   }
 }
 
