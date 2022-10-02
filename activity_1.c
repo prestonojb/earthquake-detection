@@ -6,6 +6,7 @@
 #include <math.h>
 #include <time.h>
 #include "helper.c"
+#include <pthread.h>
 
 #define pi 3.14159265358979323846
 #define LATITUDE_LOWER_BOUND -90
@@ -38,8 +39,10 @@ double deg2rad(double);
 double rad2deg(double);
 
 int main(int argc, char* argv[]) {
-  // Initialise MPI
-  int rank, total_nodes;
+  // Initialise variables
+  int rank, total_nodes, cart_rank;
+
+  // Initialise MPI variables
 	MPI_Status status;
   MPI_Comm comm;
 	MPI_Init(&argc, &argv);
@@ -49,35 +52,55 @@ int main(int argc, char* argv[]) {
   // Seed rand() function with current timestamp and rank
   srand(time(NULL) + rank*100);
 
+  int m, n;
+  int ndims = 2;
+  int dims[ndims], coord[ndims], wrap_around[ndims];
+  int reorder = 1;
+  int left_rank, right_rank, top_rank, bottom_rank;
+
+  wrap_around[0] = wrap_around[1] = 0;
+
   // Get dimensions of topology from command line arguments
-  int m = atoi(argv[1]);
-  int n = atoi(argv[2]);
+  if (argc == 3) {
+    m = atoi(argv[1]);
+    n = atoi(argv[2]);
+
+    dims[0] = m, dims[1] = n;
+
+    if( (m*n) != total_nodes ) {
+			if( rank ==0 ) printf("ERROR: m*n != total number of processes => %d * %d = %d != %d\n", m, n, m*n,total_nodes);
+			MPI_Finalize(); 
+			return 0;
+		}
+  } else {
+		m=n=(int)sqrt(total_nodes);
+		dims[0]=dims[1]=0;
+  }
+
+	// create cartesian topology for processes
+  MPI_Dims_create(total_nodes, ndims, dims);
+	if(rank==0) printf("Root Rank: %d. Comm Size: %d: Grid Dimension = [%d x %d] \n",rank,total_nodes,dims[0],dims[1]);
 
   // Initilise MPI virtual topology (Cartesian)
-  int dim[2] = {m, n};
-  int wrap_around[2] = {0,0};
-  int reorder = 1;
-  int coord[2];
-
   int ierr = 0;
-  ierr = MPI_Cart_create(MPI_COMM_WORLD, 2, dim, wrap_around, reorder, &comm);
+  ierr = MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, wrap_around, reorder, &comm);
   if(ierr != 0) printf("ERROR[%d] creating CART\n",ierr);
 
-  MPI_Cart_coords(comm, rank, 2, coord); // Save current coordinates
+  // Find my coordinates in the cartesian communicator group
+  MPI_Cart_coords(comm, rank, ndims, coord);
+  // Use my cartesian coordinates to find my rank in cartesian group
+  MPI_Cart_rank(comm, coord, &cart_rank);
 
-  if (rank == 0) {
-    printf("Topology dimensions: %dx%d \n", m, n);
-  }
-  printf("Current rank/Total nodes: %d/%d, Coordinate: (%d, %d) \n", rank, total_nodes, coord[0], coord[1]);
-  
   struct Sensor newReading;
   generate(&newReading);
   printf("Rank %d => ", rank);
   printReading(&newReading);
 
-  int left_rank, right_rank, top_rank, bottom_rank;
   MPI_Cart_shift(comm, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
   MPI_Cart_shift(comm, SHIFT_COL, DISP, &left_rank, &right_rank);
+
+	// printf("Global rank: %d. Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", rank, cart_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
+
 
   MPI_Request send_request[4];
   MPI_Request receive_request[4];
