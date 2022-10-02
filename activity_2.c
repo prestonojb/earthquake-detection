@@ -16,6 +16,9 @@ int main() {
     struct Sensor readings[SIZE];
     struct Sensor newReading;
     generate(&newReading);
+
+    // printReading(&newReading);
+    printQueue(readings, SIZE);
 }
 
 void generate(struct Sensor* reading)
