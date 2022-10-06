@@ -16,14 +16,14 @@
 #define MAGNITUDE_LOWER_BOUND 0
 #define MAGNITUDE_UPPER_BOUND 9
 #define DEPTH_UPPER_BOUND 700
-#define MAGNITUDE_UPPER_THRESHOLD 0
+#define DEFAULT_MAGNITUDE_UPPER_THRESHOLD 0
 
 #define SHIFT_ROW 0
 #define SHIFT_COL 1
 #define DISP 1
 
-#define DIFF_IN_DISTANCE_THRESHOLD_IN_KM 5000
-#define DIFF_IN_MAGNITUDE_THRESHOLD 10
+#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 5000
+#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 10
 
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
@@ -46,6 +46,10 @@ struct adj_nodes_arg_struct {
   struct Sensor* pReadingsL;
   struct Sensor* pReadingsR;
 };
+
+float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
+float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
+float DIFF_IN_MAGNITUDE_THRESHOLD = DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
 
 int left_rank, right_rank, top_rank, bottom_rank;
 int compare_readings = 0;
@@ -77,20 +81,26 @@ int main(int argc, char* argv[]) {
   wrap_around[0] = wrap_around[1] = 0;
 
   // Get dimensions of topology from command line arguments
-  if (argc == 3) {
-    m = atoi(argv[1]);
-    n = atoi(argv[2]);
+  if (argc != 3 && argc != 6) {
+    if( rank == 0 ) printf("ERROR: Number of arguments passed must be 3 or 6."); 
+    MPI_Finalize();
+    return 0;
+  }
+  
+  m = atoi(argv[1]);
+  n = atoi(argv[2]);
+  dims[0] = m, dims[1] = n;
 
-    dims[0] = m, dims[1] = n;
+  if( (m*n) != total_nodes ) {
+    if( rank ==0 ) printf("ERROR: m*n != total number of processes => %d * %d = %d != %d\n", m, n, m*n,total_nodes);
+    MPI_Finalize();
+    return 0;
+  }
 
-    if( (m*n) != total_nodes ) {
-			if( rank ==0 ) printf("ERROR: m*n != total number of processes => %d * %d = %d != %d\n", m, n, m*n,total_nodes);
-			MPI_Finalize(); 
-			return 0;
-		}
-  } else {
-		m=n=(int)sqrt(total_nodes);
-		dims[0]=dims[1]=0;
+  if (argc == 6) {
+    MAGNITUDE_UPPER_THRESHOLD = atof(argv[3]);
+    DIFF_IN_DISTANCE_THRESHOLD_IN_KM = atof(argv[4]);
+    DIFF_IN_MAGNITUDE_THRESHOLD = atof(argv[5]);
   }
 
 	// create cartesian topology for processes
