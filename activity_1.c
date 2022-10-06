@@ -16,7 +16,7 @@
 #define MAGNITUDE_LOWER_BOUND 0
 #define MAGNITUDE_UPPER_BOUND 9
 #define DEPTH_UPPER_BOUND 700
-#define MAGNITUDE_UPPER_THRESHOLD 2.5
+#define MAGNITUDE_UPPER_THRESHOLD 0
 
 #define SHIFT_ROW 0
 #define SHIFT_COL 1
@@ -28,6 +28,8 @@
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
 
+void* AdjNodesCommFunc(void* pArgs);
+
 bool areMatchingReadings(struct Sensor* readingA, struct Sensor* readingB);
 bool areMatchingLocations(float latA, float longA, float latB, float longB);
 bool areMatchingMagnitudes(float magnitudeA, float magnitudeB);
@@ -38,14 +40,29 @@ float distance(float lat1, float lon1, float lat2, float lon2);
 double deg2rad(double);
 double rad2deg(double);
 
+struct adj_nodes_arg_struct {
+  struct Sensor* pReadingsT;
+  struct Sensor* pReadingsB;
+  struct Sensor* pReadingsL;
+  struct Sensor* pReadingsR;
+};
+
+int left_rank, right_rank, top_rank, bottom_rank;
+int compare_readings = 0;
+struct Sensor newReading;
+int compare_readings_T = -1, compare_readings_B = -1, compare_readings_L = -1, compare_readings_R = -1;
+
+// Initialise MPI variables
+MPI_Status status;
+MPI_Comm comm;
+
 int main(int argc, char* argv[]) {
   // Initialise variables
   int rank, total_nodes, cart_rank;
+  int provided;
 
-  // Initialise MPI variables
-	MPI_Status status;
-  MPI_Comm comm;
-	MPI_Init(&argc, &argv);
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided );
+
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &total_nodes);
 
@@ -56,7 +73,6 @@ int main(int argc, char* argv[]) {
   int ndims = 2;
   int dims[ndims], coord[ndims], wrap_around[ndims];
   int reorder = 1;
-  int left_rank, right_rank, top_rank, bottom_rank;
 
   wrap_around[0] = wrap_around[1] = 0;
 
@@ -81,7 +97,7 @@ int main(int argc, char* argv[]) {
   MPI_Dims_create(total_nodes, ndims, dims);
 	if(rank==0) printf("Root Rank: %d. Comm Size: %d: Grid Dimension = [%d x %d] \n",rank,total_nodes,dims[0],dims[1]);
 
-  // Initilise MPI virtual topology (Cartesian)
+  // Initialise MPI virtual topology (Cartesian)
   int ierr = 0;
   ierr = MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, wrap_around, reorder, &comm);
   if(ierr != 0) printf("ERROR[%d] creating CART\n",ierr);
@@ -91,27 +107,90 @@ int main(int argc, char* argv[]) {
   // Use my cartesian coordinates to find my rank in cartesian group
   MPI_Cart_rank(comm, coord, &cart_rank);
 
-  struct Sensor newReading;
   generate(&newReading);
   printf("Rank %d => ", rank);
   printReading(&newReading);
 
   MPI_Cart_shift(comm, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
   MPI_Cart_shift(comm, SHIFT_COL, DISP, &left_rank, &right_rank);
+  
+  if (newReading.mag > MAGNITUDE_UPPER_THRESHOLD) {
+    compare_readings = 1;
+  }
 
 	// printf("Global rank: %d. Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", rank, cart_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
+  
+  struct adj_nodes_arg_struct args;
+  struct Sensor readingsT, readingsB, readingsL, readingsR;
 
+  args.pReadingsT = &readingsT;
+  args.pReadingsB = &readingsB;
+  args.pReadingsL = &readingsL;
+  args.pReadingsR = &readingsR;
+
+  pthread_t adj_nodes_comm_t;
+  pthread_create(&adj_nodes_comm_t, 0, AdjNodesCommFunc, (void*) &args);
+  pthread_join(adj_nodes_comm_t, NULL);
+
+  readingsT = *args.pReadingsT;
+  readingsB = *args.pReadingsB;
+  readingsL = *args.pReadingsL;
+  readingsR = *args.pReadingsR;
+
+  if(rank == 0){
+    if(compare_readings_T == 1) {
+      printf("ReadingsT: \n");
+      printReading(&readingsT);
+      printf("\n");
+    }
+    
+    if(compare_readings_B == 1) {
+      printf("ReadingsB: \n");
+      printReading(&readingsB);
+      printf("\n");
+    }
+
+    if(compare_readings_L == 1) {
+      printf("ReadingsL: \n");
+      printReading(&readingsL);
+      printf("\n");
+    }
+
+    if(compare_readings_R == 1) {
+      printf("ReadingsR: \n");
+      printReading(&readingsR);
+      printf("\n");
+    }
+  }
+
+  // Receive requested readings
+  if (compare_readings == 1) {
+    int no_of_matches = 0;
+    if(areMatchingReadings(&newReading, &readingsT)) no_of_matches++;
+    if(areMatchingReadings(&newReading, &readingsB)) no_of_matches++;
+    if(areMatchingReadings(&newReading, &readingsL)) no_of_matches++;
+    if(areMatchingReadings(&newReading, &readingsR)) no_of_matches++;
+
+    if(no_of_matches >= 2) {
+      // Send report to base station #TODO
+      printf("Send report to base station! \n");
+    }
+  }
+
+	MPI_Finalize();
+  return 0;
+}
+
+/* Send/receive request to adjacent nodes
+   Writes to readingsT, readingsB, readingsL, readingsR in main() scope
+*/
+void* AdjNodesCommFunc(void* pArguments) {
+  struct adj_nodes_arg_struct *pArgs = pArguments;
 
   MPI_Request send_request[4];
   MPI_Request receive_request[4];
   MPI_Status send_status[4];
   MPI_Status receive_status[4];
-
-  float magnitude = newReading.mag;
-  int compare_readings = 0;
-  if (magnitude > MAGNITUDE_UPPER_THRESHOLD) {
-    compare_readings = 1;
-  }
 
   // Request reading from adjacent nodes
   MPI_Isend(&compare_readings, 1, MPI_INT, top_rank, 0, comm, &send_request[0]);
@@ -119,7 +198,6 @@ int main(int argc, char* argv[]) {
   MPI_Isend(&compare_readings, 1, MPI_INT, left_rank, 0, comm, &send_request[2]);
   MPI_Isend(&compare_readings, 1, MPI_INT, right_rank, 0, comm, &send_request[3]);
   
-  int compare_readings_T = -1, compare_readings_B = -1, compare_readings_L = -1, compare_readings_R = -1;
   MPI_Irecv(&compare_readings_T, 1, MPI_INT, top_rank, 0, comm, &receive_request[0]);
   MPI_Irecv(&compare_readings_B, 1, MPI_INT, bottom_rank, 0, comm, &receive_request[1]);
   MPI_Irecv(&compare_readings_L, 1, MPI_INT, left_rank, 0, comm, &receive_request[2]);
@@ -128,6 +206,7 @@ int main(int argc, char* argv[]) {
   MPI_Waitall(4, send_request, send_status);
   MPI_Waitall(4, receive_request, receive_status);
 
+  // Send readings
   const int readingSize = 10;
   int blocklengths[10] = {1,1,1,1,1,1,1,1,1,1};
   MPI_Datatype MPI_READING;
@@ -163,38 +242,22 @@ int main(int argc, char* argv[]) {
     MPI_Send(&newReading, 1, MPI_READING, right_rank, 0, comm);
   }
 
-  // Receive requested readings
   if (compare_readings == 1) {
-    struct Sensor readingsT, readingsB, readingsL, readingsR;
-    MPI_Status status;
-    
     if(top_rank >= 0) {
-      MPI_Recv(&readingsT, 1, MPI_READING, top_rank, 0, comm, &status);
+      MPI_Recv(pArgs->pReadingsT, 1, MPI_READING, top_rank, 0, comm, &status);
     }
     if(bottom_rank >= 0) {
-      MPI_Recv(&readingsB, 1, MPI_READING, bottom_rank, 0, comm, &status);
+      MPI_Recv(pArgs->pReadingsB, 1, MPI_READING, bottom_rank, 0, comm, &status);
     }
     if(left_rank >= 0) {
-      MPI_Recv(&readingsL, 1, MPI_READING, left_rank, 0, comm, &status);
+      MPI_Recv(pArgs->pReadingsL, 1, MPI_READING, left_rank, 0, comm, &status);
     }
-    if(left_rank >= 0) {
-      MPI_Recv(&readingsR, 1, MPI_READING, right_rank, 0, comm, &status);
-    }
-    
-    int no_of_matches = 0;
-    if(compare_readings_T == 1 && areMatchingReadings(&newReading, &readingsT)) no_of_matches++;
-    if(compare_readings_B == 1 && areMatchingReadings(&newReading, &readingsB)) no_of_matches++;
-    if(compare_readings_L == 1 && areMatchingReadings(&newReading, &readingsL)) no_of_matches++;
-    if(compare_readings_R == 1 && areMatchingReadings(&newReading, &readingsR)) no_of_matches++;
-
-    if(no_of_matches >= 2) {
-      // Send report to base station #TODO
-      printf("Send report to base station! \n");
+    if(right_rank >= 0) {
+      MPI_Recv(pArgs->pReadingsR, 1, MPI_READING, right_rank, 0, comm, &status);
     }
   }
 
   MPI_Type_free(&MPI_READING);
-	MPI_Finalize();
   return 0;
 }
 
