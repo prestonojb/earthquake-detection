@@ -22,8 +22,8 @@
 #define SHIFT_COL 1
 #define DISP 1
 
-#define DIFF_IN_DISTANCE_THRESHOLD_IN_KM 50
-#define DIFF_IN_MAGNITUDE_THRESHOLD 0.5
+#define DIFF_IN_DISTANCE_THRESHOLD_IN_KM 5000
+#define DIFF_IN_MAGNITUDE_THRESHOLD 10
 
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
@@ -137,39 +137,39 @@ int main(int argc, char* argv[]) {
   readingsL = *args.pReadingsL;
   readingsR = *args.pReadingsR;
 
-  if(rank == 0){
-    if(compare_readings_T == 1) {
-      printf("ReadingsT: \n");
-      printReading(&readingsT);
-      printf("\n");
-    }
+  // if(rank == 0){
+  //   if(compare_readings_T == 1) {
+  //     printf("ReadingsT: \n");
+  //     printReading(&readingsT);
+  //     printf("\n");
+  //   }
     
-    if(compare_readings_B == 1) {
-      printf("ReadingsB: \n");
-      printReading(&readingsB);
-      printf("\n");
-    }
+  //   if(compare_readings_B == 1) {
+  //     printf("ReadingsB: \n");
+  //     printReading(&readingsB);
+  //     printf("\n");
+  //   }
 
-    if(compare_readings_L == 1) {
-      printf("ReadingsL: \n");
-      printReading(&readingsL);
-      printf("\n");
-    }
+  //   if(compare_readings_L == 1) {
+  //     printf("ReadingsL: \n");
+  //     printReading(&readingsL);
+  //     printf("\n");
+  //   }
 
-    if(compare_readings_R == 1) {
-      printf("ReadingsR: \n");
-      printReading(&readingsR);
-      printf("\n");
-    }
-  }
+  //   if(compare_readings_R == 1) {
+  //     printf("ReadingsR: \n");
+  //     printReading(&readingsR);
+  //     printf("\n");
+  //   }
+  // }
 
   // Receive requested readings
   if (compare_readings == 1) {
     int no_of_matches = 0;
-    if(areMatchingReadings(&newReading, &readingsT)) no_of_matches++;
-    if(areMatchingReadings(&newReading, &readingsB)) no_of_matches++;
-    if(areMatchingReadings(&newReading, &readingsL)) no_of_matches++;
-    if(areMatchingReadings(&newReading, &readingsR)) no_of_matches++;
+    if(compare_readings_T == 1 && areMatchingReadings(&newReading, &readingsT)) no_of_matches++;
+    if(compare_readings_B == 1 && areMatchingReadings(&newReading, &readingsB)) no_of_matches++;
+    if(compare_readings_L == 1 && areMatchingReadings(&newReading, &readingsL)) no_of_matches++;
+    if(compare_readings_R == 1 && areMatchingReadings(&newReading, &readingsR)) no_of_matches++;
 
     if(no_of_matches >= 2) {
       // Send report to base station #TODO
