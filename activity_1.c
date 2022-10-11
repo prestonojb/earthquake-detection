@@ -7,6 +7,7 @@
 #include <time.h>
 #include "helper.c"
 #include <pthread.h>
+#include "activity_1.h"
 
 #define pi 3.14159265358979323846
 #define LATITUDE_LOWER_BOUND -90
@@ -60,20 +61,20 @@ int compare_readings_T = -1, compare_readings_B = -1, compare_readings_L = -1, c
 MPI_Status status;
 MPI_Comm comm;
 
-int main(int argc, char* argv[]) {
-  // Initialise variables
-  int rank, total_nodes, cart_rank;
-  int provided;
-
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided );
-
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &total_nodes);
+/**
+ * The entry point to the Nodes
+ * (previously main)
+ * @param argc Argument count
+ * @param argv Argument variables
+ * @return
+ */
+int init_nodes(int argc, char* argv[], int rank, int total_nodes) {
 
   // Seed rand() function with current timestamp and rank
   srand(time(NULL) + rank*100);
 
-  int m, n;
+  // Initialise variables
+  int m, n, cart_rank;
   int ndims = 2;
   int dims[ndims], coord[ndims], wrap_around[ndims];
   int reorder = 1;

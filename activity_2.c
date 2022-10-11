@@ -2,17 +2,18 @@
 #include <stdlib.h>
 #include <time.h>
 #include "helper.c"
+#include "activity_2.h"
 
 #define SIZE 3
 
-void delay(int seconds);
+
 void getGrid(int *x, int *y);
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
 void printQueue(struct Sensor arr[], int length);
 float float_rand(float min, float max);
 
-int main() {
+int init_balloon() {
     struct Sensor readings[SIZE];
     struct Sensor newReading;
     generate(&newReading);
@@ -56,6 +57,7 @@ void printQueue(struct Sensor arr[], int length)
 }
 
 /**
+ * Generate a random float value
  * Adapted from answer:
  * https://stackoverflow.com/questions/13408990/how-to-generate-random-float-number-in-c
  * @param min
@@ -76,14 +78,4 @@ void getGrid(int *x, int *y) {
     scanf("%d", y);
 }
 
-/**
- * Delay the program
- * @param seconds Time to delay
- */
-void delay(int seconds) {
-    int ms = 1000 * seconds;
-    clock_t start_time = clock();
-    // looping till required time is not achieved
-    while (clock() < start_time + ms);
-}
 
