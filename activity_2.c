@@ -1,28 +1,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "helper.c"
+#include "helper.h"
 #include "activity_2.h"
 
 #define SIZE 3
 
 
 void getGrid(int *x, int *y);
-void generate(struct Sensor* reading);
-void printReading(struct Sensor* reading);
+void generateReading2(struct Sensor* reading);
+void printReading2(struct Sensor* reading);
 void printQueue(struct Sensor arr[], int length);
-float float_rand(float min, float max);
 
 int init_balloon() {
     struct Sensor readings[SIZE];
     struct Sensor newReading;
-    generate(&newReading);
+    generateReading2(&newReading);
 
-    // printReading(&newReading);
+    // printReading2(&newReading);
     printQueue(readings, SIZE);
 }
 
-void generate(struct Sensor* reading)
+void generateReading2(struct Sensor* reading)
 {
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
@@ -39,7 +38,7 @@ void generate(struct Sensor* reading)
     reading->depth = float_rand(4, 10);
 }
 
-void printReading(struct Sensor* reading)
+void printReading2(struct Sensor* reading)
 {
     printf(" %d\t| %d\t| %d\t| %d\t| %d\t| %d\t| %.2f\t| %.2f\t| %.2f\t| %.2f\n",
            reading->year, reading->month, reading->day, reading->hour,
@@ -51,23 +50,9 @@ void printQueue(struct Sensor arr[], int length)
 {
     printf(" YYYY\t| MM\t| DD\t| HH\t| MM\t| SS\t| Latitude\t| Longitude\t| Mag\t|Depth\n");
     for (int i = 0; i < length; ++i) {
-        printReading(&arr[i]);
+        printReading2(&arr[i]);
     }
     printf("\n");
-}
-
-/**
- * Generate a random float value
- * Adapted from answer:
- * https://stackoverflow.com/questions/13408990/how-to-generate-random-float-number-in-c
- * @param min
- * @param max
- * @return
- */
-float float_rand(float min, float max)
-{
-    float scale = rand() / (float) RAND_MAX;
-    return min + scale * ( max - min );
 }
 
 void getGrid(int *x, int *y) {

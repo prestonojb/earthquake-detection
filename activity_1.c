@@ -5,7 +5,7 @@
 #include "mpi.h"
 #include <math.h>
 #include <time.h>
-#include "helper.c"
+#include "helper.h"
 #include <pthread.h>
 #include "activity_1.h"
 
@@ -35,7 +35,6 @@ bool areMatchingReadings(struct Sensor* readingA, struct Sensor* readingB);
 bool areMatchingLocations(float latA, float longA, float latB, float longB);
 bool areMatchingMagnitudes(float magnitudeA, float magnitudeB);
 
-float float_rand(float min, float max);
 float distance(float lat1, float lon1, float lat2, float lon2);
 
 double deg2rad(double);
@@ -318,13 +317,6 @@ bool areMatchingMagnitudes(float magnitudeA, float magnitudeB) {
   return fabs((double) magnitudeA - magnitudeB) < DIFF_IN_MAGNITUDE_THRESHOLD;
 }
 
-/* generate a random floating point number from min to max */
-float float_rand(float min, float max) 
-{
-    float range = (max - min); 
-    float div = RAND_MAX / range;
-    return min + (rand() / div);
-}
 
 float distance(float lat1, float lon1, float lat2, float lon2) {
   float theta, dist;

@@ -1,18 +1,7 @@
-struct Sensor {
-    int year;
-    int month;
-    int day;
-    int hour;
-    int minute;
-    int second;
-    float lat;
-    float lon;
-    float mag;
-    float depth;
-};
+#include <stdlib.h>
+#include "helper.h"
 
 int queue_head = 0;
-void enqueue(struct Sensor arr[], int length, struct Sensor element);
 
 void enqueue(struct Sensor arr[], int length, struct Sensor element)
 {
@@ -25,4 +14,17 @@ void enqueue(struct Sensor arr[], int length, struct Sensor element)
     }
 
     arr[queue_head] = element;
+}
+
+/**
+ * Generate a random floating point number from min to max
+ * @param min
+ * @param max
+ * @return
+ */
+float float_rand(float min, float max)
+{
+    float range = (max - min);
+    float div = RAND_MAX / range;
+    return min + (rand() / div);
 }

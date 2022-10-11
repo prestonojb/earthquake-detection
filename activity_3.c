@@ -7,34 +7,21 @@
 #include <string.h>
 #include <mpi.h>
 #include <pthread.h>
+#include <math.h>
 #include "activity_1.h"
 #include "activity_2.h"
-#include "helper.c"
-#include "GeoDataSource.c"
+#include "helper.h"
 
 #define INTERVAL 5
 
 void update();
 void defineSensorType(struct Sensor sensor, MPI_Datatype* SensorType);
 void defineDataLogType(struct DataLog dataLog, MPI_Datatype* DataLogType, MPI_Datatype SensorType);
-int saveLog(conclusion, intervalCount, struct DataLog n, struct Sensor balloon);
+int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b);
 void exitBase(int sentinelValue);
 int checkSentinel();
 
 
-struct DataLog {
-    int reporterRank;
-    struct Sensor reporterData;
-
-    int topRank;
-    struct Sensor topData;
-    int bottomRank;
-    struct Sensor bottomData;
-    int leftRank;
-    struct Sensor leftData;
-    int rightRank;
-    struct Sensor rightData;
-};
 
 int main(int argc, char* argv[]) {
 
@@ -77,7 +64,7 @@ void update() {
 
         printf("Listening for seismic activity...\n");
         // Todo: use POSIX to send and receive
-        MPI_Recv(&dataLog, 1, DataLogType, MPI_ANY_SOURCE, MPI_COMM_WORLD);
+        MPI_Recv(&dataLog, 1, DataLogType, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         printf("Received seismic data! Comparing with balloon sensor.\n");
 
@@ -86,7 +73,7 @@ void update() {
         int conclusive = 1;
         saveLog(conclusive, intervalCount, dataLog, sensor);
 
-        sleep(INTERVAL)
+        sleep(INTERVAL);
         sentinelVal = checkSentinel();
     }
 
@@ -168,7 +155,8 @@ void defineDataLogType(struct DataLog dataLog, MPI_Datatype* DataLogType, MPI_Da
  * @return 0: Success
  *        -1: Error
  */
-int saveLog(conclusion, intervalCount, struct DataLog n, struct Sensor b) {
+int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b) {
+    time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     char* line = "------------------------------------";
     FILE *f;
@@ -182,7 +170,7 @@ int saveLog(conclusion, intervalCount, struct DataLog n, struct Sensor b) {
             tm.tm_sec, tm.tm_min, tm.tm_hour,
             tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
 
-    struct Sensor s = n.reporter;
+    struct Sensor s = n.reporterData;
     fprintf(f, "Alerted Time: %d:%d:%d  %d-%d-%d\n",
             s.second, s.minute, s.hour, s.day, s.month, s.year);
 
@@ -191,22 +179,22 @@ int saveLog(conclusion, intervalCount, struct DataLog n, struct Sensor b) {
 
     fprintf(f, "NODE SEISMIC REPORT:\n");
     fprintf(f, "ID\tCoordinates\t\t\tMagnitude\n");
-    fprintf(f, "%d\t(%f, %f)\t\t\t%d\n\n", n.reporterRank, s.lat, s.lon, s.mag);
+    fprintf(f, "%d\t(%f, %f)\t\t\t%f\n\n", n.reporterRank, s.lat, s.lon, s.mag);
 
     // Todo: Fill in Distance
     fprintf(f, "ID\tCoordinates\tDistance\tMagnitude\n");
 
     struct Sensor s_t = n.topData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%d\n", n.topRank, s_t.lat, s_t.lon, s_t.mag);
+    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n", n.topRank, s_t.lat, s_t.lon, s_t.mag);
 
     struct Sensor s_b = n.bottomData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%d\n", n.bottomRank, s_b.lat, s_b.lon, s_b.mag);
+    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n", n.bottomRank, s_b.lat, s_b.lon, s_b.mag);
 
     struct Sensor s_l = n.leftData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%d\n", n.leftRank, s_l.lat, s_l.lon, s_l.mag);
+    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n", n.leftRank, s_l.lat, s_l.lon, s_l.mag);
 
     struct Sensor s_r = n.rightData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%d\n\n", n.rightRank, s_r.lat, s_r.lon, s_r.mag);
+    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n\n", n.rightRank, s_r.lat, s_r.lon, s_r.mag);
 
     fprintf(f, "BALLOON SEISMIC REPORT:\n");
     fprintf(f, "Report Time: %d:%d:%d  %d-%d-%d\n",
@@ -215,8 +203,8 @@ int saveLog(conclusion, intervalCount, struct DataLog n, struct Sensor b) {
     fprintf(f, "Coordinates: (%f, %f)\n", b.lat, b.lon);
     // Todo: Distance from Balloon to Reporting Node
     fprintf(f, "Distance from Balloon to Reporting Node: -\n");
-    fprintf(f, "Magnitude: %d\n", b.mag);
-    fprintf(f, "Magnitude difference with Reporting Node: %d\n\n", abs(s.mag - b.mag));
+    fprintf(f, "Magnitude: %f\n", b.mag);
+    fprintf(f, "Magnitude difference with Reporting Node: %f\n\n", fabs(s.mag - b.mag));
 
     // Todo: Communication Time
     fprintf(f, "Communication Time (in seconds): - s\n");
