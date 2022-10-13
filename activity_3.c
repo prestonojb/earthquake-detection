@@ -11,6 +11,7 @@
 #include "activity_1.h"
 #include "activity_2.h"
 #include "helper.h"
+#include <unistd.h>
 
 #define INTERVAL 5
 
@@ -38,6 +39,8 @@ int main(int argc, char* argv[]) {
 
     if (rank == 0) update();
     else init_nodes(argc, argv, rank, total_nodes - 1);
+
+    return 0;
 }
 
 /**
@@ -215,6 +218,8 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
 
     fprintf(f,"%s\n%s\n\n", line, line);
     fclose(f);
+
+    return 0;
 }
 
 /**
