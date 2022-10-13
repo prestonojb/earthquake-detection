@@ -16,8 +16,8 @@
 #define INTERVAL 5
 
 void update();
-void defineSensorType(struct Sensor sensor, MPI_Datatype* SensorType);
-void defineDataLogType(struct DataLog dataLog, MPI_Datatype* DataLogType, MPI_Datatype SensorType);
+void defineSensorType(MPI_Datatype* SensorType);
+void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType);
 int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b);
 void exitBase(int sentinelValue);
 int checkSentinel();
@@ -38,7 +38,8 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &total_nodes);
 
     if (rank == 0) update();
-    else init_nodes(argc, argv, rank, total_nodes - 1);
+    else if (rank == total_nodes - 1) init_balloon();
+    else init_nodes(argc, argv, rank, total_nodes - 2);
 
     return 0;
 }
@@ -53,11 +54,11 @@ void update() {
 
     struct Sensor sensor;
     MPI_Datatype SensorType;
-    defineSensorType(sensor, &SensorType);
+    defineSensorType(&SensorType);
 
     struct DataLog dataLog;
     MPI_Datatype DataLogType;
-    defineDataLogType(dataLog, &DataLogType, SensorType);
+    defineDataLogType(&DataLogType, SensorType);
 
     // Loop until sentinel value encountered
     int sentinelVal = checkSentinel();
@@ -89,62 +90,51 @@ void update() {
 
 /**
  * Defines an MPI datatype of type Sensor
- * @param sensor
  * @param SensorType
  */
-void defineSensorType(struct Sensor sensor, MPI_Datatype* SensorType) {
-    const int vars = 10;
-    MPI_Datatype type[2] = { MPI_INT, MPI_FLOAT };
-    int blockLen[2] = {6, 4 };
-    MPI_Aint disp[vars];
+void defineSensorType(MPI_Datatype* SensorType) {
+    const int readingSize = 10;
+    int blocklengths[10] = {1,1,1,1,1,1,1,1,1,1};
+    MPI_Datatype types[10] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT};
+    MPI_Aint offsets[10];
 
-    // Get address for all variables
-    MPI_Get_address(&sensor.year, &disp[0]);
-    MPI_Get_address(&sensor.month, &disp[1]);
-    MPI_Get_address(&sensor.day, &disp[2]);
-    MPI_Get_address(&sensor.hour, &disp[3]);
-    MPI_Get_address(&sensor.minute, &disp[4]);
-    MPI_Get_address(&sensor.second, &disp[5]);
-    MPI_Get_address(&sensor.lat, &disp[6]);
-    MPI_Get_address(&sensor.lon, &disp[7]);
-    MPI_Get_address(&sensor.mag, &disp[8]);
-    MPI_Get_address(&sensor.depth, &disp[9]);
+    offsets[0] = offsetof(struct Sensor, year);
+    offsets[1] = offsetof(struct Sensor, month);
+    offsets[2] = offsetof(struct Sensor, day);
+    offsets[3] = offsetof(struct Sensor, hour);
+    offsets[4] = offsetof(struct Sensor, minute);
+    offsets[5] = offsetof(struct Sensor, second);
+    offsets[6] = offsetof(struct Sensor, lat);
+    offsets[7] = offsetof(struct Sensor, lon);
+    offsets[8] = offsetof(struct Sensor, mag);
+    offsets[9] = offsetof(struct Sensor, depth);
 
-    // Fix displacement
-    for (int i = 1; i < vars; i++)
-        disp[i] = disp[i] - disp[i-1];
-    disp[0] = 0;
-
-    // Create MPI datatype
-    MPI_Type_create_struct(vars, blockLen, disp, type, SensorType);
+    MPI_Type_create_struct(readingSize, blocklengths, offsets, types, SensorType);
     MPI_Type_commit(SensorType);
 }
 
-void defineDataLogType(struct DataLog dataLog, MPI_Datatype* DataLogType, MPI_Datatype SensorType) {
-    const int vars = 10;
-    MPI_Datatype type[2] = { MPI_INT, SensorType };
-    int blockLen[2] = {5, 5 };
-    MPI_Aint disp[vars];
+void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType) {
+    const int readingSize = 10;
+    int blocklengths[10] = {1,1,1,1,1,1,1,1,1,1};
+    MPI_Datatype types[10] = {MPI_INT, SensorType,
+                              MPI_INT, SensorType,
+                              MPI_INT, SensorType,
+                              MPI_INT, SensorType,
+                              MPI_INT, SensorType};
+    MPI_Aint offsets[10];
 
-    // Get address for all variables
-    MPI_Get_address(&dataLog.reporterRank, &disp[0]);
-    MPI_Get_address(&dataLog.reporterData, &disp[1]);
-    MPI_Get_address(&dataLog.topRank, &disp[2]);
-    MPI_Get_address(&dataLog.topData, &disp[3]);
-    MPI_Get_address(&dataLog.bottomRank, &disp[4]);
-    MPI_Get_address(&dataLog.bottomData, &disp[5]);
-    MPI_Get_address(&dataLog.leftRank, &disp[6]);
-    MPI_Get_address(&dataLog.leftData, &disp[7]);
-    MPI_Get_address(&dataLog.rightRank, &disp[8]);
-    MPI_Get_address(&dataLog.rightData, &disp[9]);
+    offsets[0] = offsetof(struct DataLog, reporterRank);
+    offsets[1] = offsetof(struct DataLog, reporterData);
+    offsets[2] = offsetof(struct DataLog, topRank);
+    offsets[3] = offsetof(struct DataLog, topData);
+    offsets[4] = offsetof(struct DataLog, bottomRank);
+    offsets[5] = offsetof(struct DataLog, bottomData);
+    offsets[6] = offsetof(struct DataLog, leftRank);
+    offsets[7] = offsetof(struct DataLog, leftData);
+    offsets[8] = offsetof(struct DataLog, rightRank);
+    offsets[9] = offsetof(struct DataLog, rightData);
 
-    // Fix displacement
-    for (int i = 1; i < vars; i++)
-        disp[i] = disp[i] - disp[i-1];
-    disp[0] = 0;
-
-    // Create MPI datatype
-    MPI_Type_create_struct(vars, blockLen, disp, type, DataLogType);
+    MPI_Type_create_struct(readingSize, blocklengths, offsets, types, DataLogType);
     MPI_Type_commit(DataLogType);
 }
 
