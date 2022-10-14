@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
 #include <pthread.h>
@@ -15,6 +16,10 @@
 
 #define INTERVAL 5
 
+#define DEFAULT_MAGNITUDE_UPPER_THRESHOLD 0
+#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 1000
+#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 1
+
 void update();
 void defineSensorType(MPI_Datatype* SensorType);
 void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType);
@@ -22,25 +27,61 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
 void exitBase(int sentinelValue);
 int checkSentinel();
 
-
+float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
+float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
+float DIFF_IN_MAGNITUDE_THRESHOLD = DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
 
 int main(int argc, char* argv[]) {
-
+    // Initialise variables
+    int world_rank, total_processes, provided;
+    
     // Initialise MPI variables
     MPI_Status status;
-    MPI_Comm comm;
 
-    // Initialise variables
-    int rank, total_nodes, provided;
+    // Seed rand() function with current timestamp and rank
+    srand(time(NULL) + world_rank*100);
 
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided );
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &total_nodes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &total_processes);
 
-    if (rank == 0) update();
-    else if (rank == total_nodes - 1) init_balloon();
-    else init_nodes(argc, argv, rank, total_nodes - 2);
+    // Get dimensions of topology from command line arguments
+    if (argc != 3 && argc != 6) {
+        if( world_rank == 0 ) printf("ERROR: Number of arguments passed must be 3 or 6."); 
+        MPI_Finalize();
+        return 0;
+    }
 
+    int m = atoi(argv[1]);
+    int n = atoi(argv[2]);
+
+    if( (m*n) != total_processes - 1 ) {
+        if( world_rank == 0 ) printf("ERROR: m*n != total number of processes - 1 (base station) => %d * %d = %d != %d\n", m, n, m*n,total_processes-1);
+        MPI_Finalize();
+        return 0;
+    }
+
+    if (argc == 6) {
+        MAGNITUDE_UPPER_THRESHOLD = atof(argv[3]);
+        DIFF_IN_DISTANCE_THRESHOLD_IN_KM = atof(argv[4]);
+        DIFF_IN_MAGNITUDE_THRESHOLD = atof(argv[5]);
+    }
+
+    MPI_Comm nodes_comm;
+    // Split into base station and sensor nodes
+    MPI_Comm_split( MPI_COMM_WORLD, world_rank == 0, 0, &nodes_comm);
+
+    if (world_rank == 0) {
+        update();
+    } else {
+        init_nodes(m, n, MAGNITUDE_UPPER_THRESHOLD, DIFF_IN_DISTANCE_THRESHOLD_IN_KM, DIFF_IN_MAGNITUDE_THRESHOLD, MPI_COMM_WORLD, nodes_comm);
+    }
+
+    // if (rank == 0) update();
+    // else if (rank == total_nodes - 1) init_balloon();
+    // else init_nodes(argc, argv, rank, total_nodes - 2);
+
+    MPI_Finalize();
     return 0;
 }
 
@@ -49,7 +90,6 @@ int main(int argc, char* argv[]) {
  * Stops when encountered a sentinel value.
  */
 void update() {
-
     int intervalCount = 0;
 
     struct Sensor sensor;
