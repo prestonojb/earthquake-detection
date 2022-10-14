@@ -17,14 +17,10 @@
 #define MAGNITUDE_LOWER_BOUND 0
 #define MAGNITUDE_UPPER_BOUND 9
 #define DEPTH_UPPER_BOUND 700
-#define DEFAULT_MAGNITUDE_UPPER_THRESHOLD 0
 
 #define SHIFT_ROW 0
 #define SHIFT_COL 1
 #define DISP 1
-
-#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 5000
-#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 10
 
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
@@ -47,9 +43,9 @@ struct adj_nodes_arg_struct {
   struct Sensor* pReadingsR;
 };
 
-float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
-float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
-float DIFF_IN_MAGNITUDE_THRESHOLD = DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
+float MAGNITUDE_UPPER_THRESHOLD;
+float DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
+float DIFF_IN_MAGNITUDE_THRESHOLD;
 
 int left_rank, right_rank, top_rank, bottom_rank;
 int compare_readings = 0;
@@ -58,7 +54,7 @@ int compare_readings_T = -1, compare_readings_B = -1, compare_readings_L = -1, c
 
 // Initialise MPI variables
 MPI_Status status;
-MPI_Comm comm;
+MPI_Comm comm2D;
 
 /**
  * The entry point to the Nodes
@@ -67,68 +63,53 @@ MPI_Comm comm;
  * @param argv Argument variables
  * @return
  */
-int init_nodes(int argc, char* argv[], int rank, int total_nodes) {
-
-  // Seed rand() function with current timestamp and rank
-  srand(time(NULL) + rank*100);
+int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_distance_threshold_in_km, float diff_in_magnitude_threshold, MPI_Comm world_comm, MPI_Comm comm) {
+  // printf("m=%d, n=%d, magnitude_upper_threshold=%.2f, diff_in_distance_threshold_in_km=%.2f, diff_in_magnitude_threshold=%.2f \n", m,n,magnitude_upper_threshold,diff_in_distance_threshold_in_km,diff_in_magnitude_threshold);
 
   // Initialise variables
-  int m, n, cart_rank;
   int ndims = 2;
   int dims[ndims], coord[ndims], wrap_around[ndims];
   int reorder = 1;
 
   wrap_around[0] = wrap_around[1] = 0;
-
-  // Get dimensions of topology from command line arguments
-  if (argc != 3 && argc != 6) {
-    if( rank == 0 ) printf("ERROR: Number of arguments passed must be 3 or 6."); 
-    MPI_Finalize();
-    return 0;
-  }
-  
-  m = atoi(argv[1]);
-  n = atoi(argv[2]);
   dims[0] = m, dims[1] = n;
 
-  if( (m*n) != total_nodes ) {
-    if( rank ==0 ) printf("ERROR: m*n != total number of processes => %d * %d = %d != %d\n", m, n, m*n,total_nodes);
-    MPI_Finalize();
-    return 0;
-  }
+  MAGNITUDE_UPPER_THRESHOLD = magnitude_upper_threshold;
+  DIFF_IN_DISTANCE_THRESHOLD_IN_KM = diff_in_distance_threshold_in_km;
+  DIFF_IN_MAGNITUDE_THRESHOLD = diff_in_magnitude_threshold;
 
-  if (argc == 6) {
-    MAGNITUDE_UPPER_THRESHOLD = atof(argv[3]);
-    DIFF_IN_DISTANCE_THRESHOLD_IN_KM = atof(argv[4]);
-    DIFF_IN_MAGNITUDE_THRESHOLD = atof(argv[5]);
-  }
+  int world_rank, total_processes;
+  MPI_Comm_rank(world_comm, &world_rank);
+  MPI_Comm_size(world_comm, &total_processes);
+
+  int node_rank, total_nodes;
+  MPI_Comm_rank(comm, &node_rank);
+  MPI_Comm_size(comm, &total_nodes);
 
 	// create cartesian topology for processes
   MPI_Dims_create(total_nodes, ndims, dims);
-	if(rank==0) printf("Root Rank: %d. Comm Size: %d: Grid Dimension = [%d x %d] \n",rank,total_nodes,dims[0],dims[1]);
+	if(node_rank==0) printf("Comm Size: %d: Grid Dimension = [%d x %d] \n",total_nodes,dims[0],dims[1]);
 
   // Initialise MPI virtual topology (Cartesian)
   int ierr = 0;
-  ierr = MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, wrap_around, reorder, &comm);
+  ierr = MPI_Cart_create(comm, ndims, dims, wrap_around, reorder, &comm2D);
   if(ierr != 0) printf("ERROR[%d] creating CART\n",ierr);
 
   // Find my coordinates in the cartesian communicator group
-  MPI_Cart_coords(comm, rank, ndims, coord);
-  // Use my cartesian coordinates to find my rank in cartesian group
-  MPI_Cart_rank(comm, coord, &cart_rank);
+  MPI_Cart_coords(comm2D, node_rank, ndims, coord);
 
   generate(&newReading);
-  printf("Rank %d => ", rank);
-  printReading(&newReading);
+  // printf("Node Rank %d => ", node_rank);
+  // printReading(&newReading);
 
-  MPI_Cart_shift(comm, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
-  MPI_Cart_shift(comm, SHIFT_COL, DISP, &left_rank, &right_rank);
+  MPI_Cart_shift(comm2D, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
+  MPI_Cart_shift(comm2D, SHIFT_COL, DISP, &left_rank, &right_rank);
   
   if (newReading.mag > MAGNITUDE_UPPER_THRESHOLD) {
     compare_readings = 1;
   }
 
-	// printf("Global rank: %d. Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", rank, cart_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
+	// printf("Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", node_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
   
   struct adj_nodes_arg_struct args;
   struct Sensor readingsT, readingsB, readingsL, readingsR;
@@ -147,7 +128,7 @@ int init_nodes(int argc, char* argv[], int rank, int total_nodes) {
   readingsL = *args.pReadingsL;
   readingsR = *args.pReadingsR;
 
-  // if(rank == 0){
+  // if(node_rank == 0){
   //   if(compare_readings_T == 1) {
   //     printf("ReadingsT: \n");
   //     printReading(&readingsT);
@@ -183,11 +164,11 @@ int init_nodes(int argc, char* argv[], int rank, int total_nodes) {
 
     if(no_of_matches >= 2) {
       // Send report to base station #TODO
-      printf("Send report to base station! \n");
+      printf("Sensor node %d sends report to base station! \n", node_rank);
     }
   }
 
-	MPI_Finalize();
+  MPI_Comm_free(&comm2D);
   return 0;
 }
 
@@ -203,15 +184,15 @@ void* AdjNodesCommFunc(void* pArguments) {
   MPI_Status receive_status[4];
 
   // Request reading from adjacent nodes
-  MPI_Isend(&compare_readings, 1, MPI_INT, top_rank, 0, comm, &send_request[0]);
-  MPI_Isend(&compare_readings, 1, MPI_INT, bottom_rank, 0, comm, &send_request[1]);
-  MPI_Isend(&compare_readings, 1, MPI_INT, left_rank, 0, comm, &send_request[2]);
-  MPI_Isend(&compare_readings, 1, MPI_INT, right_rank, 0, comm, &send_request[3]);
+  MPI_Isend(&compare_readings, 1, MPI_INT, top_rank, 0, comm2D, &send_request[0]);
+  MPI_Isend(&compare_readings, 1, MPI_INT, bottom_rank, 0, comm2D, &send_request[1]);
+  MPI_Isend(&compare_readings, 1, MPI_INT, left_rank, 0, comm2D, &send_request[2]);
+  MPI_Isend(&compare_readings, 1, MPI_INT, right_rank, 0, comm2D, &send_request[3]);
   
-  MPI_Irecv(&compare_readings_T, 1, MPI_INT, top_rank, 0, comm, &receive_request[0]);
-  MPI_Irecv(&compare_readings_B, 1, MPI_INT, bottom_rank, 0, comm, &receive_request[1]);
-  MPI_Irecv(&compare_readings_L, 1, MPI_INT, left_rank, 0, comm, &receive_request[2]);
-  MPI_Irecv(&compare_readings_R, 1, MPI_INT, right_rank, 0, comm, &receive_request[3]);
+  MPI_Irecv(&compare_readings_T, 1, MPI_INT, top_rank, 0, comm2D, &receive_request[0]);
+  MPI_Irecv(&compare_readings_B, 1, MPI_INT, bottom_rank, 0, comm2D, &receive_request[1]);
+  MPI_Irecv(&compare_readings_L, 1, MPI_INT, left_rank, 0, comm2D, &receive_request[2]);
+  MPI_Irecv(&compare_readings_R, 1, MPI_INT, right_rank, 0, comm2D, &receive_request[3]);
 
   MPI_Waitall(4, send_request, send_status);
   MPI_Waitall(4, receive_request, receive_status);
@@ -240,30 +221,30 @@ void* AdjNodesCommFunc(void* pArguments) {
 
   // Send (blocking) readings to adjacent nodes (if requested)
   if (compare_readings_T == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, top_rank, 0, comm);
+    MPI_Send(&newReading, 1, MPI_READING, top_rank, 0, comm2D);
   }
   if (compare_readings_B == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, bottom_rank, 0, comm);
+    MPI_Send(&newReading, 1, MPI_READING, bottom_rank, 0, comm2D);
   }
   if (compare_readings_L == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, left_rank, 0, comm);
+    MPI_Send(&newReading, 1, MPI_READING, left_rank, 0, comm2D);
   }
   if (compare_readings_R == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, right_rank, 0, comm);
+    MPI_Send(&newReading, 1, MPI_READING, right_rank, 0, comm2D);
   }
 
   if (compare_readings == 1) {
     if(top_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsT, 1, MPI_READING, top_rank, 0, comm, &status);
+      MPI_Recv(pArgs->pReadingsT, 1, MPI_READING, top_rank, 0, comm2D, &status);
     }
     if(bottom_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsB, 1, MPI_READING, bottom_rank, 0, comm, &status);
+      MPI_Recv(pArgs->pReadingsB, 1, MPI_READING, bottom_rank, 0, comm2D, &status);
     }
     if(left_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsL, 1, MPI_READING, left_rank, 0, comm, &status);
+      MPI_Recv(pArgs->pReadingsL, 1, MPI_READING, left_rank, 0, comm2D, &status);
     }
     if(right_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsR, 1, MPI_READING, right_rank, 0, comm, &status);
+      MPI_Recv(pArgs->pReadingsR, 1, MPI_READING, right_rank, 0, comm2D, &status);
     }
   }
 

@@ -19,6 +19,8 @@ int init_balloon() {
 
     // printReading2(&newReading);
     printQueue(readings, SIZE);
+
+    return 0;
 }
 
 void generateReading2(struct Sensor* reading)
