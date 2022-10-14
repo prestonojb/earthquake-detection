@@ -7,7 +7,8 @@
 #include <time.h>
 #include "helper.h"
 #include <pthread.h>
-#include "activity_1.h"
+#include "activity_2.h"
+#include "activity_3.h"
 
 #define pi 3.14159265358979323846
 #define LATITUDE_LOWER_BOUND -90
@@ -21,6 +22,8 @@
 #define SHIFT_ROW 0
 #define SHIFT_COL 1
 #define DISP 1
+
+#define BASE_STATION 0
 
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
@@ -163,8 +166,12 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
     if(compare_readings_R == 1 && areMatchingReadings(&newReading, &readingsR)) no_of_matches++;
 
     if(no_of_matches >= 2) {
-      // Send report to base station #TODO
+      // Send report to base station
       printf("Sensor node %d sends report to base station! \n", node_rank);
+
+      MPI_Datatype SensorType;
+      defineSensorType(&SensorType);
+      MPI_Send(&newReading, 1, SensorType, BASE_STATION, 0, world_comm);
     }
   }
 
@@ -198,57 +205,39 @@ void* AdjNodesCommFunc(void* pArguments) {
   MPI_Waitall(4, receive_request, receive_status);
 
   // Send readings
-  const int readingSize = 10;
-  int blocklengths[10] = {1,1,1,1,1,1,1,1,1,1};
-  MPI_Datatype MPI_READING;
-  MPI_Aint offsets[10];
-
-  offsets[0] = offsetof(struct Sensor, year);
-  offsets[1] = offsetof(struct Sensor, month);
-  offsets[2] = offsetof(struct Sensor, day);
-  offsets[3] = offsetof(struct Sensor, hour);
-  offsets[4] = offsetof(struct Sensor, minute);
-  offsets[5] = offsetof(struct Sensor, second);
-  offsets[6] = offsetof(struct Sensor, lat);
-  offsets[7] = offsetof(struct Sensor, lon);
-  offsets[8] = offsetof(struct Sensor, mag);
-  offsets[9] = offsetof(struct Sensor, depth);
-
-  MPI_Datatype types[10] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT};
-
-  MPI_Type_create_struct(readingSize, blocklengths, offsets, types, &MPI_READING);
-  MPI_Type_commit(&MPI_READING);
+  MPI_Datatype SensorType;
+  defineSensorType(&SensorType);
 
   // Send (blocking) readings to adjacent nodes (if requested)
   if (compare_readings_T == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, top_rank, 0, comm2D);
+    MPI_Send(&newReading, 1, SensorType, top_rank, 0, comm2D);
   }
   if (compare_readings_B == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, bottom_rank, 0, comm2D);
+    MPI_Send(&newReading, 1, SensorType, bottom_rank, 0, comm2D);
   }
   if (compare_readings_L == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, left_rank, 0, comm2D);
+    MPI_Send(&newReading, 1, SensorType, left_rank, 0, comm2D);
   }
   if (compare_readings_R == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, right_rank, 0, comm2D);
+    MPI_Send(&newReading, 1, SensorType, right_rank, 0, comm2D);
   }
 
   if (compare_readings == 1) {
     if(top_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsT, 1, MPI_READING, top_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingsT, 1, SensorType, top_rank, 0, comm2D, &status);
     }
     if(bottom_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsB, 1, MPI_READING, bottom_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingsB, 1, SensorType, bottom_rank, 0, comm2D, &status);
     }
     if(left_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsL, 1, MPI_READING, left_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingsL, 1, SensorType, left_rank, 0, comm2D, &status);
     }
     if(right_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsR, 1, MPI_READING, right_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingsR, 1, SensorType, right_rank, 0, comm2D, &status);
     }
   }
 
-  MPI_Type_free(&MPI_READING);
+  MPI_Type_free(&SensorType);
   return 0;
 }
 

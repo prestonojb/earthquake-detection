@@ -1,0 +1,224 @@
+------------------------------------
+------------------------------------
+Iterations: 1
+Logged Time: 31:45:19  14-10-2022
+Alerted Time: 1115811398:31:45  19-14-10
+Alert is Conclusive
+
+NODE SEISMIC REPORT:
+ID	Coordinates			Magnitude
+2022	(-13.741119, 8.826530)			38.369324
+
+ID	Coordinates	Distance	Magnitude
+1	(0.000000, 6118061896881768856603852800.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				6118203567876254945960263680.000000
+
+BALLOON SEISMIC REPORT:
+Report Time: 0:0:0  0-0-0
+Coordinates: (0.000000, 0.000000)
+Distance from Balloon to Reporting Node: -
+Magnitude: 0.000000
+Magnitude difference with Reporting Node: 38.369324
+
+Communication Time (in seconds): - s
+Total messages sent by Node to Base: 1
+Coordinate Threshold: 20
+Magnitude Difference Threshold: 0.5
+Earthquake Magnitude Threshold: 2.5
+------------------------------------
+------------------------------------
+
+------------------------------------
+------------------------------------
+Iterations: 2
+Logged Time: 36:45:19  14-10-2022
+Alerted Time: 1110968720:31:45  19-14-10
+Alert is Conclusive
+
+NODE SEISMIC REPORT:
+ID	Coordinates			Magnitude
+2022	(-1.790253, 8.283659)			190.747726
+
+ID	Coordinates	Distance	Magnitude
+1	(0.000000, 6118061896881768856603852800.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				6118203567876254945960263680.000000
+
+BALLOON SEISMIC REPORT:
+Report Time: 0:0:0  0-0-0
+Coordinates: (0.000000, 0.000000)
+Distance from Balloon to Reporting Node: -
+Magnitude: 0.000000
+Magnitude difference with Reporting Node: 190.747726
+
+Communication Time (in seconds): - s
+Total messages sent by Node to Base: 1
+Coordinate Threshold: 20
+Magnitude Difference Threshold: 0.5
+Earthquake Magnitude Threshold: 2.5
+------------------------------------
+------------------------------------
+
+------------------------------------
+------------------------------------
+Iterations: 3
+Logged Time: 41:45:19  14-10-2022
+Alerted Time: -1052173440:31:45  19-14-10
+Alert is Conclusive
+
+NODE SEISMIC REPORT:
+ID	Coordinates			Magnitude
+2022	(138.529358, 8.075980)			311.561279
+
+ID	Coordinates	Distance	Magnitude
+1	(0.000000, 6118061896881768856603852800.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				6118203567876254945960263680.000000
+
+BALLOON SEISMIC REPORT:
+Report Time: 0:0:0  0-0-0
+Coordinates: (0.000000, 0.000000)
+Distance from Balloon to Reporting Node: -
+Magnitude: 0.000000
+Magnitude difference with Reporting Node: 311.561279
+
+Communication Time (in seconds): - s
+Total messages sent by Node to Base: 1
+Coordinate Threshold: 20
+Magnitude Difference Threshold: 0.5
+Earthquake Magnitude Threshold: 2.5
+------------------------------------
+------------------------------------
+
+------------------------------------
+------------------------------------
+Iterations: 1
+Logged Time: 22:20:20  14-10-2022
+Alerted Time: -1046840668:22:20  20-14-10
+Alert is Conclusive
+
+NODE SEISMIC REPORT:
+ID	Coordinates			Magnitude
+2022	(-2.356171, 4.498103)			669.581360
+
+ID	Coordinates	Distance	Magnitude
+1	(0.000000, 70144218347816288060478324736.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				70145351715772176775329611776.000000
+
+BALLOON SEISMIC REPORT:
+Report Time: 0:0:0  0-0-0
+Coordinates: (0.000000, 0.000000)
+Distance from Balloon to Reporting Node: -
+Magnitude: 0.000000
+Magnitude difference with Reporting Node: 669.581360
+
+Communication Time (in seconds): - s
+Total messages sent by Node to Base: 1
+Coordinate Threshold: 20
+Magnitude Difference Threshold: 0.5
+Earthquake Magnitude Threshold: 2.5
+------------------------------------
+------------------------------------
+
+------------------------------------
+------------------------------------
+Iterations: 2
+Logged Time: 27:20:20  14-10-2022
+Alerted Time: -1037619601:22:20  20-14-10
+Alert is Conclusive
+
+NODE SEISMIC REPORT:
+ID	Coordinates			Magnitude
+2022	(171.351715, 2.208504)			180.778839
+
+ID	Coordinates	Distance	Magnitude
+1	(0.000000, 70144218347816288060478324736.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				70145351715772176775329611776.000000
+
+BALLOON SEISMIC REPORT:
+Report Time: 0:0:0  0-0-0
+Coordinates: (0.000000, 0.000000)
+Distance from Balloon to Reporting Node: -
+Magnitude: 0.000000
+Magnitude difference with Reporting Node: 180.778839
+
+Communication Time (in seconds): - s
+Total messages sent by Node to Base: 1
+Coordinate Threshold: 20
+Magnitude Difference Threshold: 0.5
+Earthquake Magnitude Threshold: 2.5
+------------------------------------
+------------------------------------
+
+------------------------------------
+------------------------------------
+Iterations: 3
+Logged Time: 32:20:20  14-10-2022
+Alerted Time: 1108966836:22:20  20-14-10
+Alert is Conclusive
+
+NODE SEISMIC REPORT:
+ID	Coordinates			Magnitude
+2022	(-18.133652, 8.195524)			479.905396
+
+ID	Coordinates	Distance	Magnitude
+1	(0.000000, 70144218347816288060478324736.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				70145351715772176775329611776.000000
+
+BALLOON SEISMIC REPORT:
+Report Time: 0:0:0  0-0-0
+Coordinates: (0.000000, 0.000000)
+Distance from Balloon to Reporting Node: -
+Magnitude: 0.000000
+Magnitude difference with Reporting Node: 479.905396
+
+Communication Time (in seconds): - s
+Total messages sent by Node to Base: 1
+Coordinate Threshold: 20
+Magnitude Difference Threshold: 0.5
+Earthquake Magnitude Threshold: 2.5
+------------------------------------
+------------------------------------
+
+------------------------------------
+------------------------------------
+Iterations: 4
+Logged Time: 37:20:20  14-10-2022
+Alerted Time: 1111780220:22:20  20-14-10
+Alert is Conclusive
+
+NODE SEISMIC REPORT:
+ID	Coordinates			Magnitude
+2022	(14.630753, 4.981175)			47.363400
+
+ID	Coordinates	Distance	Magnitude
+1	(0.000000, 70144218347816288060478324736.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				0.000000
+0	(0.000000, 0.000000)				70145351715772176775329611776.000000
+
+BALLOON SEISMIC REPORT:
+Report Time: 0:0:0  0-0-0
+Coordinates: (0.000000, 0.000000)
+Distance from Balloon to Reporting Node: -
+Magnitude: 0.000000
+Magnitude difference with Reporting Node: 47.363400
+
+Communication Time (in seconds): - s
+Total messages sent by Node to Base: 1
+Coordinate Threshold: 20
+Magnitude Difference Threshold: 0.5
+Earthquake Magnitude Threshold: 2.5
+------------------------------------
+------------------------------------
+
