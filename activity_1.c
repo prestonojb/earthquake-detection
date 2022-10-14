@@ -88,7 +88,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
 
 	// create cartesian topology for processes
   MPI_Dims_create(total_nodes, ndims, dims);
-	if(node_rank==0) printf("Root Rank: %d. Comm Size: %d: Grid Dimension = [%d x %d] \n",node_rank,total_nodes,dims[0],dims[1]);
+	if(node_rank==0) printf("Comm Size: %d: Grid Dimension = [%d x %d] \n",total_nodes,dims[0],dims[1]);
 
   // Initialise MPI virtual topology (Cartesian)
   int ierr = 0;
@@ -99,8 +99,8 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
   MPI_Cart_coords(comm2D, node_rank, ndims, coord);
 
   generate(&newReading);
-  printf("Node Rank %d => ", node_rank);
-  printReading(&newReading);
+  // printf("Node Rank %d => ", node_rank);
+  // printReading(&newReading);
 
   MPI_Cart_shift(comm2D, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
   MPI_Cart_shift(comm2D, SHIFT_COL, DISP, &left_rank, &right_rank);
@@ -164,7 +164,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
 
     if(no_of_matches >= 2) {
       // Send report to base station #TODO
-      printf("Send report to base station! \n");
+      printf("Sensor node %d sends report to base station! \n", node_rank);
     }
   }
 
