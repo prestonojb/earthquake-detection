@@ -121,10 +121,13 @@ void update() {
         intervalCount++;
 
         printf("Listening for seismic activity...\n");
-        // Todo: use POSIX to send and receive
+        
         MPI_Recv(&dataLog, 1, DataLogType, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        printf("Received seismic data from node %d! Comparing with balloon sensor.\n", dataLog.reporterRank);
+        
+        
+        // Todo: use POSIX to send and receive
 
-        printf("Received seismic data! Comparing with balloon sensor.\n");
 
         // Retrieving last value from shared balloon readings array
         int finalVal = queue_head;  // From "helper.h"
@@ -141,7 +144,6 @@ void update() {
 
     /* Clean up the type */
     MPI_Type_free( &SensorType );
-    MPI_Finalize( );
 
     exitBase(sentinelVal);
 }

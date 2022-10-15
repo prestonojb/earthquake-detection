@@ -7,7 +7,9 @@
 #include <time.h>
 #include "helper.h"
 #include <pthread.h>
-#include "activity_1.h"
+#include "activity_2.h"
+#include "activity_3.h"
+#include <unistd.h>
 
 #define pi 3.14159265358979323846
 #define LATITUDE_LOWER_BOUND -90
@@ -21,6 +23,11 @@
 #define SHIFT_ROW 0
 #define SHIFT_COL 1
 #define DISP 1
+
+#define BASE_STATION 0
+#define READING_INTERVAL_IN_S 5
+
+#define TERMINATION_TAG -1
 
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
@@ -37,10 +44,10 @@ double deg2rad(double);
 double rad2deg(double);
 
 struct adj_nodes_arg_struct {
-  struct Sensor* pReadingsT;
-  struct Sensor* pReadingsB;
-  struct Sensor* pReadingsL;
-  struct Sensor* pReadingsR;
+  struct Sensor* pReadingT;
+  struct Sensor* pReadingB;
+  struct Sensor* pReadingL;
+  struct Sensor* pReadingR;
 };
 
 float MAGNITUDE_UPPER_THRESHOLD;
@@ -48,9 +55,9 @@ float DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
 float DIFF_IN_MAGNITUDE_THRESHOLD;
 
 int left_rank, right_rank, top_rank, bottom_rank;
-int compare_readings = 0;
-struct Sensor newReading;
-int compare_readings_T = -1, compare_readings_B = -1, compare_readings_L = -1, compare_readings_R = -1;
+int compare_adj_readings = 0;
+struct Sensor currReading;
+int compare_readingT = -1, compare_readingB = -1, compare_readingL = -1, compare_readingR = -1;
 
 // Initialise MPI variables
 MPI_Status status;
@@ -98,82 +105,128 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
   // Find my coordinates in the cartesian communicator group
   MPI_Cart_coords(comm2D, node_rank, ndims, coord);
 
-  generate(&newReading);
-  // printf("Node Rank %d => ", node_rank);
-  // printReading(&newReading);
-
   MPI_Cart_shift(comm2D, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
   MPI_Cart_shift(comm2D, SHIFT_COL, DISP, &left_rank, &right_rank);
   
-  if (newReading.mag > MAGNITUDE_UPPER_THRESHOLD) {
-    compare_readings = 1;
-  }
+  // Generates reading indefinitely until a termination message is received from base station
+  while(1) {
+    if(isTerminated(world_comm)) break;
 
-	// printf("Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", node_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
-  
-  struct adj_nodes_arg_struct args;
-  struct Sensor readingsT, readingsB, readingsL, readingsR;
-
-  args.pReadingsT = &readingsT;
-  args.pReadingsB = &readingsB;
-  args.pReadingsL = &readingsL;
-  args.pReadingsR = &readingsR;
-
-  pthread_t adj_nodes_comm_t;
-  pthread_create(&adj_nodes_comm_t, 0, AdjNodesCommFunc, (void*) &args);
-  pthread_join(adj_nodes_comm_t, NULL);
-
-  readingsT = *args.pReadingsT;
-  readingsB = *args.pReadingsB;
-  readingsL = *args.pReadingsL;
-  readingsR = *args.pReadingsR;
-
-  // if(node_rank == 0){
-  //   if(compare_readings_T == 1) {
-  //     printf("ReadingsT: \n");
-  //     printReading(&readingsT);
-  //     printf("\n");
-  //   }
+    generate(&currReading);
+    // printf("Node Rank %d => ", node_rank);
+    // printReading(&currReading);
     
-  //   if(compare_readings_B == 1) {
-  //     printf("ReadingsB: \n");
-  //     printReading(&readingsB);
-  //     printf("\n");
-  //   }
-
-  //   if(compare_readings_L == 1) {
-  //     printf("ReadingsL: \n");
-  //     printReading(&readingsL);
-  //     printf("\n");
-  //   }
-
-  //   if(compare_readings_R == 1) {
-  //     printf("ReadingsR: \n");
-  //     printReading(&readingsR);
-  //     printf("\n");
-  //   }
-  // }
-
-  // Receive requested readings
-  if (compare_readings == 1) {
-    int no_of_matches = 0;
-    if(compare_readings_T == 1 && areMatchingReadings(&newReading, &readingsT)) no_of_matches++;
-    if(compare_readings_B == 1 && areMatchingReadings(&newReading, &readingsB)) no_of_matches++;
-    if(compare_readings_L == 1 && areMatchingReadings(&newReading, &readingsL)) no_of_matches++;
-    if(compare_readings_R == 1 && areMatchingReadings(&newReading, &readingsR)) no_of_matches++;
-
-    if(no_of_matches >= 2) {
-      // Send report to base station #TODO
-      printf("Sensor node %d sends report to base station! \n", node_rank);
+    if (currReading.mag > MAGNITUDE_UPPER_THRESHOLD) {
+      compare_adj_readings = 1;
     }
+
+    // printf("Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", node_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
+    
+    struct adj_nodes_arg_struct args;
+    struct Sensor readingT, readingB, readingL, readingR;
+
+    args.pReadingT = &readingT;
+    args.pReadingB = &readingB;
+    args.pReadingL = &readingL;
+    args.pReadingR = &readingR;
+
+    pthread_t adj_nodes_comm_t;
+    pthread_create(&adj_nodes_comm_t, 0, AdjNodesCommFunc, (void*) &args);
+    pthread_join(adj_nodes_comm_t, NULL);
+
+    readingT = *args.pReadingT;
+    readingB = *args.pReadingB;
+    readingL = *args.pReadingL;
+    readingR = *args.pReadingR;
+
+    // if(node_rank == 0){
+    //   if(compare_readingT == 1) {
+    //     printf("readingT: \n");
+    //     printReading(&readingT);
+    //     printf("\n");
+    //   }
+      
+    //   if(compare_readingB == 1) {
+    //     printf("readingB: \n");
+    //     printReading(&readingB);
+    //     printf("\n");
+    //   }
+
+    //   if(compare_readingL == 1) {
+    //     printf("readingL: \n");
+    //     printReading(&readingL);
+    //     printf("\n");
+    //   }
+
+    //   if(compare_readingR == 1) {
+    //     printf("readingR: \n");
+    //     printReading(&readingR);
+    //     printf("\n");
+    //   }
+    // }
+
+    // Receive requested readings
+    if (compare_adj_readings == 1) {
+      int no_of_matches = 0;
+      if(compare_readingT == 1 && areMatchingReadings(&currReading, &readingT)) no_of_matches++;
+      if(compare_readingB == 1 && areMatchingReadings(&currReading, &readingB)) no_of_matches++;
+      if(compare_readingL == 1 && areMatchingReadings(&currReading, &readingL)) no_of_matches++;
+      if(compare_readingR == 1 && areMatchingReadings(&currReading, &readingR)) no_of_matches++;
+
+      if(no_of_matches >= 2 && node_rank == 0) {
+        // Send report to base station
+        printf("Sensor node %d sends report to base station! \n", node_rank);
+        printReading(&currReading);
+
+        MPI_Datatype SensorType;
+        defineSensorType(&SensorType);
+        
+        MPI_Datatype DataLogType;
+        defineDataLogType(&DataLogType, SensorType);
+
+        struct DataLog datalog;
+        datalog.reporterRank = node_rank;
+        datalog.reporterData = currReading;
+
+        datalog.topRank = top_rank;
+        datalog.topData = readingT;
+
+        datalog.bottomRank = bottom_rank;
+        datalog.bottomData = readingB;
+
+        datalog.leftRank = left_rank;
+        datalog.leftData = readingL;
+
+        datalog.rightRank = right_rank;
+        datalog.rightData = readingR;
+
+        MPI_Send(&datalog, 1, DataLogType, BASE_STATION, 0, world_comm);
+      }
+    }
+
+    sleep(READING_INTERVAL_IN_S);
   }
 
   MPI_Comm_free(&comm2D);
   return 0;
 }
 
+void isTerminated(MPI_Comm world_comm) {
+  MPI_Status probe_status;
+	int flag = 0;
+  MPI_Iprobe(BASE_STATION, TERMINATION_TAG, world_comm, &flag, &probe_status);
+  
+  if(flag == 1){
+    int recv_buf;
+    flag = 0;
+
+    MPI_Recv(&recv_buf, 1, MPI_INT, BASE_STATION, TERMINATION_TAG, world_comm, &status);
+    printf("MPI Master Process received exit %d value from base station", recv_buf);
+  }
+}
+
 /* Send/receive request to adjacent nodes
-   Writes to readingsT, readingsB, readingsL, readingsR in main() scope
+   Writes to readingT, readingB, readingL, readingR in main() scope
 */
 void* AdjNodesCommFunc(void* pArguments) {
   struct adj_nodes_arg_struct *pArgs = pArguments;
@@ -184,71 +237,53 @@ void* AdjNodesCommFunc(void* pArguments) {
   MPI_Status receive_status[4];
 
   // Request reading from adjacent nodes
-  MPI_Isend(&compare_readings, 1, MPI_INT, top_rank, 0, comm2D, &send_request[0]);
-  MPI_Isend(&compare_readings, 1, MPI_INT, bottom_rank, 0, comm2D, &send_request[1]);
-  MPI_Isend(&compare_readings, 1, MPI_INT, left_rank, 0, comm2D, &send_request[2]);
-  MPI_Isend(&compare_readings, 1, MPI_INT, right_rank, 0, comm2D, &send_request[3]);
+  MPI_Isend(&compare_adj_readings, 1, MPI_INT, top_rank, 0, comm2D, &send_request[0]);
+  MPI_Isend(&compare_adj_readings, 1, MPI_INT, bottom_rank, 0, comm2D, &send_request[1]);
+  MPI_Isend(&compare_adj_readings, 1, MPI_INT, left_rank, 0, comm2D, &send_request[2]);
+  MPI_Isend(&compare_adj_readings, 1, MPI_INT, right_rank, 0, comm2D, &send_request[3]);
   
-  MPI_Irecv(&compare_readings_T, 1, MPI_INT, top_rank, 0, comm2D, &receive_request[0]);
-  MPI_Irecv(&compare_readings_B, 1, MPI_INT, bottom_rank, 0, comm2D, &receive_request[1]);
-  MPI_Irecv(&compare_readings_L, 1, MPI_INT, left_rank, 0, comm2D, &receive_request[2]);
-  MPI_Irecv(&compare_readings_R, 1, MPI_INT, right_rank, 0, comm2D, &receive_request[3]);
+  MPI_Irecv(&compare_readingT, 1, MPI_INT, top_rank, 0, comm2D, &receive_request[0]);
+  MPI_Irecv(&compare_readingB, 1, MPI_INT, bottom_rank, 0, comm2D, &receive_request[1]);
+  MPI_Irecv(&compare_readingL, 1, MPI_INT, left_rank, 0, comm2D, &receive_request[2]);
+  MPI_Irecv(&compare_readingR, 1, MPI_INT, right_rank, 0, comm2D, &receive_request[3]);
 
   MPI_Waitall(4, send_request, send_status);
   MPI_Waitall(4, receive_request, receive_status);
 
   // Send readings
-  const int readingSize = 10;
-  int blocklengths[10] = {1,1,1,1,1,1,1,1,1,1};
-  MPI_Datatype MPI_READING;
-  MPI_Aint offsets[10];
-
-  offsets[0] = offsetof(struct Sensor, year);
-  offsets[1] = offsetof(struct Sensor, month);
-  offsets[2] = offsetof(struct Sensor, day);
-  offsets[3] = offsetof(struct Sensor, hour);
-  offsets[4] = offsetof(struct Sensor, minute);
-  offsets[5] = offsetof(struct Sensor, second);
-  offsets[6] = offsetof(struct Sensor, lat);
-  offsets[7] = offsetof(struct Sensor, lon);
-  offsets[8] = offsetof(struct Sensor, mag);
-  offsets[9] = offsetof(struct Sensor, depth);
-
-  MPI_Datatype types[10] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT};
-
-  MPI_Type_create_struct(readingSize, blocklengths, offsets, types, &MPI_READING);
-  MPI_Type_commit(&MPI_READING);
+  MPI_Datatype SensorType;
+  defineSensorType(&SensorType);
 
   // Send (blocking) readings to adjacent nodes (if requested)
-  if (compare_readings_T == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, top_rank, 0, comm2D);
+  if (compare_readingT == 1) {
+    MPI_Send(&currReading, 1, SensorType, top_rank, 0, comm2D);
   }
-  if (compare_readings_B == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, bottom_rank, 0, comm2D);
+  if (compare_readingB == 1) {
+    MPI_Send(&currReading, 1, SensorType, bottom_rank, 0, comm2D);
   }
-  if (compare_readings_L == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, left_rank, 0, comm2D);
+  if (compare_readingL == 1) {
+    MPI_Send(&currReading, 1, SensorType, left_rank, 0, comm2D);
   }
-  if (compare_readings_R == 1) {
-    MPI_Send(&newReading, 1, MPI_READING, right_rank, 0, comm2D);
+  if (compare_readingR == 1) {
+    MPI_Send(&currReading, 1, SensorType, right_rank, 0, comm2D);
   }
 
-  if (compare_readings == 1) {
+  if (compare_adj_readings == 1) {
     if(top_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsT, 1, MPI_READING, top_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingT, 1, SensorType, top_rank, 0, comm2D, &status);
     }
     if(bottom_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsB, 1, MPI_READING, bottom_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingB, 1, SensorType, bottom_rank, 0, comm2D, &status);
     }
     if(left_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsL, 1, MPI_READING, left_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingL, 1, SensorType, left_rank, 0, comm2D, &status);
     }
     if(right_rank >= 0) {
-      MPI_Recv(pArgs->pReadingsR, 1, MPI_READING, right_rank, 0, comm2D, &status);
+      MPI_Recv(pArgs->pReadingR, 1, SensorType, right_rank, 0, comm2D, &status);
     }
   }
 
-  MPI_Type_free(&MPI_READING);
+  MPI_Type_free(&SensorType);
   return 0;
 }
 
@@ -297,7 +332,6 @@ bool areMatchingLocations(float latA, float longA, float latB, float longB) {
 bool areMatchingMagnitudes(float magnitudeA, float magnitudeB) {
   return fabs((double) magnitudeA - magnitudeB) < DIFF_IN_MAGNITUDE_THRESHOLD;
 }
-
 
 float distance(float lat1, float lon1, float lat2, float lon2) {
   float theta, dist;
