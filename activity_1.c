@@ -165,13 +165,34 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
     if(compare_readings_L == 1 && areMatchingReadings(&newReading, &readingsL)) no_of_matches++;
     if(compare_readings_R == 1 && areMatchingReadings(&newReading, &readingsR)) no_of_matches++;
 
-    if(no_of_matches >= 2) {
+    if(no_of_matches >= 2 && node_rank == 0) {
       // Send report to base station
       printf("Sensor node %d sends report to base station! \n", node_rank);
+      printReading(&newReading);
 
       MPI_Datatype SensorType;
       defineSensorType(&SensorType);
-      MPI_Send(&newReading, 1, SensorType, BASE_STATION, 0, world_comm);
+      
+      MPI_Datatype DataLogType;
+      defineDataLogType(&DataLogType, SensorType);
+
+      struct DataLog datalog;
+      datalog.reporterRank = node_rank;
+      datalog.reporterData = newReading;
+
+      datalog.topRank = top_rank;
+      datalog.topData = readingsT;
+
+      datalog.bottomRank = bottom_rank;
+      datalog.bottomData = readingsB;
+
+      datalog.leftRank = left_rank;
+      datalog.leftData = readingsL;
+
+      datalog.rightRank = right_rank;
+      datalog.rightData = readingsR;
+
+      MPI_Send(&datalog, 1, DataLogType, BASE_STATION, 0, world_comm);
     }
   }
 
