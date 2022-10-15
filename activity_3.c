@@ -21,6 +21,7 @@
 #define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 1000
 
 void update();
+void createBalloonPosix();
 void defineSensorType(MPI_Datatype* SensorType);
 void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType);
 int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b);
@@ -30,6 +31,10 @@ int checkSentinel();
 float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
 float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
 float DIFF_IN_MAGNITUDE_THRESHOLD = DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
+
+// Shared Balloon sensor readings
+#define SIZE 10
+struct Sensor readings[SIZE];
 
 int main(int argc, char* argv[]) {
     // Initialise variables
@@ -72,6 +77,7 @@ int main(int argc, char* argv[]) {
     MPI_Comm_split( MPI_COMM_WORLD, world_rank == 0, 0, &nodes_comm);
 
     if (world_rank == 0) {
+        createBalloonPosix(readings);
         update();
     } else {
         init_nodes(m, n, MAGNITUDE_UPPER_THRESHOLD, DIFF_IN_DISTANCE_THRESHOLD_IN_KM, DIFF_IN_MAGNITUDE_THRESHOLD, MPI_COMM_WORLD, nodes_comm);
@@ -83,6 +89,14 @@ int main(int argc, char* argv[]) {
 
     MPI_Finalize();
     return 0;
+}
+
+/**
+ * Create a POSIX thread to start the balloon sensor
+ */
+void createBalloonPosix() {
+    pthread_t balloon_comm;
+    pthread_create(&balloon_comm, 0, startBalloon, (void*) readings);
 }
 
 /**
@@ -112,7 +126,11 @@ void update() {
 
         printf("Received seismic data! Comparing with balloon sensor.\n");
 
-        // Todo: check balloon shared array
+        // Retrieving last value from shared balloon readings array
+        int finalVal = queue_head;  // From "helper.h"
+        struct Sensor balloonReading = readings[finalVal];
+
+        // Todo: Compare balloon and nodes reading
 
         int conclusive = 1;
         saveLog(conclusive, intervalCount, dataLog, sensor);
@@ -259,6 +277,11 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
  */
 void exitBase(int sentinelValue) {
 
+    // Comm Balloon to quit
+    pthread_t balloon_comm;
+    int message = 1;
+    pthread_create(&balloon_comm, 0, receiveMessage, &message);
+    pthread_join(balloon_comm, NULL);
 
     if (sentinelValue == 1)
         printf("Sentinel value detected. Quitting!\n");

@@ -5,7 +5,6 @@ int queue_head = 0;
 
 void enqueue(struct Sensor arr[], int length, struct Sensor element)
 {
-    queue_head++;
     if (queue_head == length) {
         for (int i = 1; i < length; ++i) {
             arr[i-1] = arr[i];
@@ -14,6 +13,8 @@ void enqueue(struct Sensor arr[], int length, struct Sensor element)
     }
 
     arr[queue_head] = element;
+
+    queue_head++;
 }
 
 /**

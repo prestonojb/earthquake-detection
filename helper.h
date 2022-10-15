@@ -25,5 +25,6 @@ struct DataLog {
     struct Sensor rightData;
 };
 
+extern int queue_head;
 void enqueue(struct Sensor arr[], int length, struct Sensor element);
 float float_rand(float min, float max);
