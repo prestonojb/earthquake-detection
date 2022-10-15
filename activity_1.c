@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include "activity_2.h"
 #include "activity_3.h"
+#include <unistd.h>
 
 #define pi 3.14159265358979323846
 #define LATITUDE_LOWER_BOUND -90
@@ -24,6 +25,7 @@
 #define DISP 1
 
 #define BASE_STATION 0
+#define READING_INTERVAL_IN_S 5 
 
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
@@ -101,99 +103,104 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
   // Find my coordinates in the cartesian communicator group
   MPI_Cart_coords(comm2D, node_rank, ndims, coord);
 
-  generate(&currReading);
-  // printf("Node Rank %d => ", node_rank);
-  // printReading(&currReading);
-
   MPI_Cart_shift(comm2D, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
   MPI_Cart_shift(comm2D, SHIFT_COL, DISP, &left_rank, &right_rank);
   
-  if (currReading.mag > MAGNITUDE_UPPER_THRESHOLD) {
-    compare_adj_readings = 1;
-  }
-
-	// printf("Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", node_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
-  
-  struct adj_nodes_arg_struct args;
-  struct Sensor readingT, readingB, readingL, readingR;
-
-  args.pReadingT = &readingT;
-  args.pReadingB = &readingB;
-  args.pReadingL = &readingL;
-  args.pReadingR = &readingR;
-
-  pthread_t adj_nodes_comm_t;
-  pthread_create(&adj_nodes_comm_t, 0, AdjNodesCommFunc, (void*) &args);
-  pthread_join(adj_nodes_comm_t, NULL);
-
-  readingT = *args.pReadingT;
-  readingB = *args.pReadingB;
-  readingL = *args.pReadingL;
-  readingR = *args.pReadingR;
-
-  // if(node_rank == 0){
-  //   if(compare_readingT == 1) {
-  //     printf("readingT: \n");
-  //     printReading(&readingT);
-  //     printf("\n");
-  //   }
+  // Generates reading indefinitely until a termination message is received from base station
+  while(1) {
+    generate(&currReading);
+    // printf("Node Rank %d => ", node_rank);
+    // printReading(&currReading);
     
-  //   if(compare_readingB == 1) {
-  //     printf("readingB: \n");
-  //     printReading(&readingB);
-  //     printf("\n");
-  //   }
-
-  //   if(compare_readingL == 1) {
-  //     printf("readingL: \n");
-  //     printReading(&readingL);
-  //     printf("\n");
-  //   }
-
-  //   if(compare_readingR == 1) {
-  //     printf("readingR: \n");
-  //     printReading(&readingR);
-  //     printf("\n");
-  //   }
-  // }
-
-  // Receive requested readings
-  if (compare_adj_readings == 1) {
-    int no_of_matches = 0;
-    if(compare_readingT == 1 && areMatchingReadings(&currReading, &readingT)) no_of_matches++;
-    if(compare_readingB == 1 && areMatchingReadings(&currReading, &readingB)) no_of_matches++;
-    if(compare_readingL == 1 && areMatchingReadings(&currReading, &readingL)) no_of_matches++;
-    if(compare_readingR == 1 && areMatchingReadings(&currReading, &readingR)) no_of_matches++;
-
-    if(no_of_matches >= 2 && node_rank == 0) {
-      // Send report to base station
-      printf("Sensor node %d sends report to base station! \n", node_rank);
-      printReading(&currReading);
-
-      MPI_Datatype SensorType;
-      defineSensorType(&SensorType);
-      
-      MPI_Datatype DataLogType;
-      defineDataLogType(&DataLogType, SensorType);
-
-      struct DataLog datalog;
-      datalog.reporterRank = node_rank;
-      datalog.reporterData = currReading;
-
-      datalog.topRank = top_rank;
-      datalog.topData = readingT;
-
-      datalog.bottomRank = bottom_rank;
-      datalog.bottomData = readingB;
-
-      datalog.leftRank = left_rank;
-      datalog.leftData = readingL;
-
-      datalog.rightRank = right_rank;
-      datalog.rightData = readingR;
-
-      MPI_Send(&datalog, 1, DataLogType, BASE_STATION, 0, world_comm);
+    if (currReading.mag > MAGNITUDE_UPPER_THRESHOLD) {
+      compare_adj_readings = 1;
     }
+
+    // printf("Cart rank: %d. Coord: (%d, %d). Left: %d. Right: %d. Top: %d. Bottom: %d\n", node_rank, coord[0], coord[1], left_rank, right_rank, top_rank, bottom_rank);
+    
+    struct adj_nodes_arg_struct args;
+    struct Sensor readingT, readingB, readingL, readingR;
+
+    args.pReadingT = &readingT;
+    args.pReadingB = &readingB;
+    args.pReadingL = &readingL;
+    args.pReadingR = &readingR;
+
+    pthread_t adj_nodes_comm_t;
+    pthread_create(&adj_nodes_comm_t, 0, AdjNodesCommFunc, (void*) &args);
+    pthread_join(adj_nodes_comm_t, NULL);
+
+    readingT = *args.pReadingT;
+    readingB = *args.pReadingB;
+    readingL = *args.pReadingL;
+    readingR = *args.pReadingR;
+
+    // if(node_rank == 0){
+    //   if(compare_readingT == 1) {
+    //     printf("readingT: \n");
+    //     printReading(&readingT);
+    //     printf("\n");
+    //   }
+      
+    //   if(compare_readingB == 1) {
+    //     printf("readingB: \n");
+    //     printReading(&readingB);
+    //     printf("\n");
+    //   }
+
+    //   if(compare_readingL == 1) {
+    //     printf("readingL: \n");
+    //     printReading(&readingL);
+    //     printf("\n");
+    //   }
+
+    //   if(compare_readingR == 1) {
+    //     printf("readingR: \n");
+    //     printReading(&readingR);
+    //     printf("\n");
+    //   }
+    // }
+
+    // Receive requested readings
+    if (compare_adj_readings == 1) {
+      int no_of_matches = 0;
+      if(compare_readingT == 1 && areMatchingReadings(&currReading, &readingT)) no_of_matches++;
+      if(compare_readingB == 1 && areMatchingReadings(&currReading, &readingB)) no_of_matches++;
+      if(compare_readingL == 1 && areMatchingReadings(&currReading, &readingL)) no_of_matches++;
+      if(compare_readingR == 1 && areMatchingReadings(&currReading, &readingR)) no_of_matches++;
+
+      if(no_of_matches >= 2 && node_rank == 0) {
+        // Send report to base station
+        printf("Sensor node %d sends report to base station! \n", node_rank);
+        printReading(&currReading);
+
+        MPI_Datatype SensorType;
+        defineSensorType(&SensorType);
+        
+        MPI_Datatype DataLogType;
+        defineDataLogType(&DataLogType, SensorType);
+
+        struct DataLog datalog;
+        datalog.reporterRank = node_rank;
+        datalog.reporterData = currReading;
+
+        datalog.topRank = top_rank;
+        datalog.topData = readingT;
+
+        datalog.bottomRank = bottom_rank;
+        datalog.bottomData = readingB;
+
+        datalog.leftRank = left_rank;
+        datalog.leftData = readingL;
+
+        datalog.rightRank = right_rank;
+        datalog.rightData = readingR;
+
+        MPI_Send(&datalog, 1, DataLogType, BASE_STATION, 0, world_comm);
+      }
+    }
+
+    sleep(READING_INTERVAL_IN_S);
   }
 
   MPI_Comm_free(&comm2D);
