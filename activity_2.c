@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 #include "helper.h"
 #include "activity_2.h"
 
-#define SIZE 3
+#define SIZE 10
 
 
 void getGrid(int *x, int *y);
@@ -12,15 +13,36 @@ void generateReading2(struct Sensor* reading);
 void printReading2(struct Sensor* reading);
 void printQueue(struct Sensor arr[], int length);
 
-int init_balloon() {
-    struct Sensor readings[SIZE];
-    struct Sensor newReading;
-    generateReading2(&newReading);
+int shutdown = 0;
 
-    // printReading2(&newReading);
-    printQueue(readings, SIZE);
+/**
+ * Started on a thread by the Base
+ */
+void* startBalloon(void* pArg) {
+    struct Sensor* sharedReadings = pArg;
+    while (shutdown == 0) {
+        struct Sensor newReading;
+        generateReading2(&newReading);
+        enqueue(sharedReadings, SIZE, newReading);
 
-    return 0;
+        // printReading2(&newReading);
+        printQueue(sharedReadings, SIZE);
+        sleep(5);
+    }
+}
+
+/**
+ * Receive a message from Base
+ * @param pArg
+ * @return
+ */
+void* receiveMessage(void *pArg) {
+    int* p = (int*) pArg;
+    int message = *p;
+
+    if (message == 1) {
+        shutdown = 1;
+    }
 }
 
 void generateReading2(struct Sensor* reading)

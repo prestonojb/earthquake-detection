@@ -1,6 +1,7 @@
 #ifndef _ACTIVITY_2_H_
 #define _ACTIVITY_2_H_
 
-int init_balloon();
+void* startBalloon(void* pArg);
+void* receiveMessage(void *pArg);
 
 #endif
