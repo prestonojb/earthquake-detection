@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 #define SIZE 10
-
+#define INTERVAL 2
 
 void getGrid(int *x, int *y);
 void generateReading2(struct Sensor* reading);
@@ -28,7 +28,7 @@ void* startBalloon(void* pArg) {
 
         // printReading2(&newReading);
         printQueue(sharedReadings, SIZE);
-        sleep(5);
+        sleep(INTERVAL);
     }
     return 0;
 }
