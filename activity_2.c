@@ -30,6 +30,7 @@ void* startBalloon(void* pArg) {
         printQueue(sharedReadings, SIZE);
         sleep(5);
     }
+    return 0;
 }
 
 /**
@@ -44,6 +45,7 @@ void* receiveMessage(void *pArg) {
     if (message == 1) {
         shutdown = 1;
     }
+    return 0;
 }
 
 void generateReading2(struct Sensor* reading)

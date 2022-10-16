@@ -110,7 +110,6 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
   
   // Generates reading indefinitely until a termination message is received from base station
   while(1) {
-    if(isTerminated(world_comm)) break;
 
     generate(&currReading);
     // printf("Node Rank %d => ", node_rank);
@@ -209,20 +208,6 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
 
   MPI_Comm_free(&comm2D);
   return 0;
-}
-
-void isTerminated(MPI_Comm world_comm) {
-  MPI_Status probe_status;
-	int flag = 0;
-  MPI_Iprobe(BASE_STATION, TERMINATION_TAG, world_comm, &flag, &probe_status);
-  
-  if(flag == 1){
-    int recv_buf;
-    flag = 0;
-
-    MPI_Recv(&recv_buf, 1, MPI_INT, BASE_STATION, TERMINATION_TAG, world_comm, &status);
-    printf("MPI Master Process received exit %d value from base station", recv_buf);
-  }
 }
 
 /* Send/receive request to adjacent nodes
