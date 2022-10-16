@@ -32,6 +32,7 @@ void exitBase(MPI_Comm world_comm);
 int checkSentinel();
 void printColNode(FILE* f, int id, float lat, float lon, float mag, float depth);
 void* terminationToNodesComm();
+void* recvDataLogFromNodesCommFunc(void* pArg);
 
 float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
 float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
@@ -106,30 +107,19 @@ void createBalloonPosix() {
  */
 void update(MPI_Comm world_comm) {
     int intervalCount = 0;
-
-    struct Sensor sensor;
-    MPI_Datatype SensorType;
-    defineSensorType(&SensorType);
-
     struct DataLog dataLog;
-    MPI_Datatype DataLogType;
-    defineDataLogType(&DataLogType, SensorType);
 
     // Loop until sentinel value encountered
     int sentinelVal = checkSentinel();
     while (sentinelVal == 0) {
-
         intervalCount++;
 
         printf("Listening for seismic activity...\n");
-        
-        MPI_Recv(&dataLog, 1, DataLogType, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        printf("Received seismic data from node %d! Comparing with balloon sensor.\n", dataLog.reporterRank);
-        
-        
-        // Todo: use POSIX to send and receive
 
-
+        pthread_t recv_datalog_from_nodes_comm_t;
+        pthread_create(&recv_datalog_from_nodes_comm_t, 0, recvDataLogFromNodesCommFunc, &dataLog);
+        pthread_join(recv_datalog_from_nodes_comm_t, NULL);
+        
         // Retrieving last value from shared balloon readings array
         int finalVal = queue_head;  // From "helper.h"
         struct Sensor balloonReading = readings[finalVal-1];
@@ -142,10 +132,25 @@ void update(MPI_Comm world_comm) {
         sentinelVal = checkSentinel();
     }
 
+    exitBase(MPI_COMM_WORLD);
+}
+
+void* recvDataLogFromNodesCommFunc(void* pArg) {
+    struct DataLog *pDataLog = pArg;
+
+    struct Sensor sensor;
+    MPI_Datatype SensorType;
+    defineSensorType(&SensorType);
+
+    MPI_Datatype DataLogType;
+    defineDataLogType(&DataLogType, SensorType);
+
+    MPI_Recv(pDataLog, 1, DataLogType, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    printf("Received seismic data from node %d! Comparing with balloon sensor.\n", pDataLog->reporterRank);
+
     /* Clean up the type */
     MPI_Type_free( &SensorType );
-
-    exitBase(MPI_COMM_WORLD);
+    MPI_Type_free( &DataLogType );
 }
 
 /**
