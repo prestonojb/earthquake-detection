@@ -11,7 +11,6 @@
 #include "activity_2.h"
 #include "activity_3.h"
 
-#define pi 3.14159265358979323846
 #define LATITUDE_LOWER_BOUND -90
 #define LATITUDE_UPPER_BOUND 90
 #define LONGITUDE_LOWER_BOUND -180
@@ -24,12 +23,9 @@
 #define SHIFT_COL 1
 #define DISP 1
 
-#define BASE_STATION 0
 #define READING_INTERVAL_IN_S 5
 
-#define TERMINATION_TAG 10
-
-void generate(struct Sensor* reading);
+void generateNodeReading(struct Sensor* reading);
 void printReading(struct Sensor* reading);
 
 void* AdjNodesCommFunc(void* pArgs);
@@ -130,7 +126,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
       isTerminated = true;
     }
 
-    generate(&currReading);
+    generateNodeReading(&currReading);
     // printf("Node Rank %d => ", node_rank);
     // printReading(&currReading);
     
@@ -280,7 +276,7 @@ void* AdjNodesCommFunc(void* pArguments) {
   return 0;
 }
 
-void generate(struct Sensor* reading)
+void generateNodeReading(struct Sensor* reading)
 {
   time_t t = time(NULL);
   struct tm tm = *localtime(&t);

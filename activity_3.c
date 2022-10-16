@@ -10,18 +10,12 @@
 #include <mpi.h>
 #include <pthread.h>
 #include <math.h>
+#include <unistd.h>
+#include "helper.h"
 #include "activity_1.h"
 #include "activity_2.h"
-#include "helper.h"
-#include <unistd.h>
 
-#define INTERVAL 5
-
-#define DEFAULT_MAGNITUDE_UPPER_THRESHOLD 0
-#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 100000
-#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 1000
-
-#define TERMINATION_TAG 10
+#define READING_INTERVAL_IN_S 5
 
 void update();
 void createBalloonPosix();
@@ -129,7 +123,7 @@ void update(MPI_Comm world_comm) {
         saveLog(conclusive, intervalCount, dataLog, balloonReading);
         printf("Base station logs alert from node %d to log.txt file. \n", dataLog.reporterRank);
 
-        sleep(INTERVAL);
+        sleep(READING_INTERVAL_IN_S);
         sentinelVal = checkSentinel();
     }
 

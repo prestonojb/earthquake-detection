@@ -1,7 +1,18 @@
 #ifndef _HELPER_H_
 #define _HELPER_H_
 
-#include <stdio.h> 
+#include <stdio.h>
+
+#define pi 3.14159265358979323846
+
+#define DEFAULT_MAGNITUDE_UPPER_THRESHOLD 0
+#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 100000
+#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 1000
+
+#define QUEUE_SIZE 10
+
+#define BASE_STATION 0
+#define TERMINATION_TAG 10
 
 struct Sensor {
     int year;

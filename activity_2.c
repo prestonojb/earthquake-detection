@@ -2,14 +2,12 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
-#include "helper.h"
-#include "activity_2.h"
 #include <unistd.h>
+#include "helper.h"
 
-#define SIZE 10
-#define INTERVAL 2
+#define READING_INTERVAL_IN_S 2
 
-void generateReading2(struct Sensor* reading);
+void generateBalloonReading(struct Sensor* reading);
 void printReading(struct Sensor* reading);
 void printQueue(struct Sensor arr[], int length);
 
@@ -22,12 +20,12 @@ void* startBalloon(void* pArg) {
     struct Sensor* sharedReadings = pArg;
     while (shutdown == 0) {
         struct Sensor newReading;
-        generateReading2(&newReading);
-        enqueue(sharedReadings, SIZE, newReading);
+        generateBalloonReading(&newReading);
+        enqueue(sharedReadings, QUEUE_SIZE, newReading);
 
         // printReading(&newReading);
-        printQueue(sharedReadings, SIZE);
-        sleep(INTERVAL);
+        printQueue(sharedReadings, QUEUE_SIZE);
+        sleep(READING_INTERVAL_IN_S);
     }
     return 0;
 }
@@ -47,7 +45,7 @@ void* receiveMessage(void *pArg) {
     return 0;
 }
 
-void generateReading2(struct Sensor* reading)
+void generateBalloonReading(struct Sensor* reading)
 {
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
