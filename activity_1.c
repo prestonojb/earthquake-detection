@@ -71,8 +71,6 @@ MPI_Comm comm2D;
  * @return
  */
 int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_distance_threshold_in_km, float diff_in_magnitude_threshold, MPI_Comm world_comm, MPI_Comm comm) {
-  // printf("m=%d, n=%d, magnitude_upper_threshold=%.2f, diff_in_distance_threshold_in_km=%.2f, diff_in_magnitude_threshold=%.2f \n", m,n,magnitude_upper_threshold,diff_in_distance_threshold_in_km,diff_in_magnitude_threshold);
-
   // Initialise variables
   int ndims = 2;
   int dims[ndims], coord[ndims], wrap_around[ndims];
@@ -95,7 +93,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
 
 	// create cartesian topology for processes
   MPI_Dims_create(total_nodes, ndims, dims);
-	if(node_rank==0) printf("Comm Size: %d: Grid Dimension = [%d x %d] \n",total_nodes,dims[0],dims[1]);
+	// if(node_rank==0) printf("Comm Size: %d: Grid Dimension = [%d x %d] \n",total_nodes,dims[0],dims[1]);
 
   // Initialise MPI virtual topology (Cartesian)
   int ierr = 0;

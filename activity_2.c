@@ -9,7 +9,6 @@
 #define SIZE 10
 #define INTERVAL 2
 
-void getGrid(int *x, int *y);
 void generateReading2(struct Sensor* reading);
 void printReading2(struct Sensor* reading);
 void printQueue(struct Sensor arr[], int length);
@@ -81,13 +80,3 @@ void printQueue(struct Sensor arr[], int length)
     }
     printf("\n");
 }
-
-void getGrid(int *x, int *y) {
-    printf("Enter the Grid size");
-    printf("\n\tx: ");
-    scanf("%d", x);
-    printf("\ty: ");
-    scanf("%d", y);
-}
-
-
