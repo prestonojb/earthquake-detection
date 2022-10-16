@@ -204,7 +204,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
         datalog.rightData = readingR;
 
         MPI_Send(&datalog, 1, DataLogType, BASE_STATION, 0, world_comm);
-        printf("Sensor node %d is triggered, send report to Base Station \n", node_rank);
+        printf("Sensor node %d is triggered, send report to base station \n", node_rank);
         // printReading(&currReading);
       }
     }

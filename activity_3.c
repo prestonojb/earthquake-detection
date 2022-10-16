@@ -127,7 +127,7 @@ void update(MPI_Comm world_comm) {
         int conclusive = areMatchingReadings(&dataLog.reporterData, &balloonReading);
 
         saveLog(conclusive, intervalCount, dataLog, balloonReading);
-        printf("Base station logs alert to log.txt file. \n");
+        printf("Base station logs alert from node %d to log.txt file. \n", dataLog.reporterRank);
 
         sleep(INTERVAL);
         sentinelVal = checkSentinel();
