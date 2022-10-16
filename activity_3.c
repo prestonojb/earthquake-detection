@@ -31,6 +31,7 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
 void exitBase(MPI_Comm world_comm);
 int checkSentinel();
 void printColNode(FILE* f, int id, float lat, float lon, float mag, float depth);
+void* terminationToNodesComm();
 
 float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
 float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
@@ -279,6 +280,9 @@ void printColNode(FILE* f, int id, float lat, float lon, float mag, float depth)
         fprintf(f, "%d\t(%.2f, %.2f)  \t-\t\t\t%.2f\t\t%.2f\n", id, lat, lon, mag, depth);
     }
 }
+struct termination_to_nodes_arg_struct {
+    int total_nodes;
+};
 
 /**
  * Exit the program.
@@ -298,20 +302,35 @@ void exitBase(MPI_Comm world_comm) {
     MPI_Comm_size(world_comm, &total_processes);
     int total_nodes = total_processes - 1;
     
-    int termination_msg = 0;
+    struct termination_to_nodes_arg_struct args;
+
+    args.total_nodes = total_nodes;
+
+    pthread_t termination_to_nodes_comm_t;
+    pthread_create(&termination_to_nodes_comm_t, 0, terminationToNodesComm, (void*) &args);
+    pthread_join(termination_to_nodes_comm_t, NULL);
+}
+
+void* terminationToNodesComm(void *pArguments) {
+    struct termination_to_nodes_arg_struct *pArgs = pArguments;
+    int total_nodes = pArgs->total_nodes;
 
     MPI_Request send_request[total_nodes];
     MPI_Status send_status[total_nodes];
+    
+    int termination_msg = 0;
 
     for(int i=0; i < total_nodes; i++) {
         int node_rank = i+1; // offset base station rank
         
         printf("Send termination message to node %d \n", node_rank);
-        MPI_Isend(&termination_msg, 1, MPI_INT, node_rank, TERMINATION_TAG, world_comm, &send_request[i]);
+        MPI_Isend(&termination_msg, 1, MPI_INT, node_rank, TERMINATION_TAG, MPI_COMM_WORLD, &send_request[i]);
     }
     
     printf("Waiting to receive send ACK of all termination messages from sensor nodes... \n");
     MPI_Waitall(total_nodes, send_request, send_status);
+
+    return 0;
 }
 
 /**
