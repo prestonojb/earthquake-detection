@@ -85,17 +85,6 @@ int main(int argc, char* argv[]) {
         init_nodes(m, n, MAGNITUDE_UPPER_THRESHOLD, DIFF_IN_DISTANCE_THRESHOLD_IN_KM, DIFF_IN_MAGNITUDE_THRESHOLD, MPI_COMM_WORLD, nodes_comm);
     }
 
-    // if (rank == 0) update();
-    // else if (rank == total_nodes - 1) init_balloon();
-    // else init_nodes(argc, argv, rank, total_nodes - 2);
-
-    // if(world_rank != 0) {
-    // }
-
-    // int errorcode;
-    // MPI_Abort(MPI_COMM_WORLD, errorcode);
-    printf("byee from rank %d! \n", world_rank);
-
     MPI_Finalize();
     return 0;
 }
