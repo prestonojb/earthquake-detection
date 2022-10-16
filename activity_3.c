@@ -146,6 +146,7 @@ void* recvDataLogFromNodesCommFunc(void* pArg) {
     /* Clean up the type */
     MPI_Type_free( &SensorType );
     MPI_Type_free( &DataLogType );
+    return 0;
 }
 
 /**
