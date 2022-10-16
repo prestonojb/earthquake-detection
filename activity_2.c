@@ -10,7 +10,7 @@
 #define INTERVAL 2
 
 void generateReading2(struct Sensor* reading);
-void printReading2(struct Sensor* reading);
+void printReading(struct Sensor* reading);
 void printQueue(struct Sensor arr[], int length);
 
 int shutdown = 0;
@@ -25,8 +25,8 @@ void* startBalloon(void* pArg) {
         generateReading2(&newReading);
         enqueue(sharedReadings, SIZE, newReading);
 
-        // printReading2(&newReading);
-        // printQueue(sharedReadings, SIZE);
+        // printReading(&newReading);
+        printQueue(sharedReadings, SIZE);
         sleep(INTERVAL);
     }
     return 0;
@@ -64,19 +64,11 @@ void generateReading2(struct Sensor* reading)
     reading->depth = float_rand(4, 10);
 }
 
-void printReading2(struct Sensor* reading)
-{
-    printf(" %d\t| %d\t| %d\t| %d\t| %d\t| %d\t| %.2f\t| %.2f\t| %.2f\t| %.2f\n",
-           reading->year, reading->month, reading->day, reading->hour,
-           reading->minute, reading->second, reading->lat, reading->lon,
-           reading->mag, reading->depth);
-}
-
 void printQueue(struct Sensor arr[], int length)
 {
     printf(" YYYY\t| MM\t| DD\t| HH\t| MM\t| SS\t| Latitude\t| Longitude\t| Mag\t|Depth\n");
     for (int i = 0; i < length; ++i) {
-        printReading2(&arr[i]);
+        printReading(&arr[i]);
     }
     printf("\n");
 }

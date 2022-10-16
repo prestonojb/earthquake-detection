@@ -1,3 +1,8 @@
+#ifndef _HELPER_H_
+#define _HELPER_H_
+
+#include <stdio.h> 
+
 struct Sensor {
     int year;
     int month;
@@ -28,3 +33,6 @@ struct DataLog {
 extern int queue_head;
 void enqueue(struct Sensor arr[], int length, struct Sensor element);
 float float_rand(float min, float max);
+void printReading(struct Sensor* reading);
+
+#endif

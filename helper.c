@@ -29,3 +29,11 @@ float float_rand(float min, float max)
     float div = RAND_MAX / range;
     return min + (rand() / div);
 }
+
+void printReading(struct Sensor* reading)
+{
+  printf("%d\t| %d\t| %d\t| %d\t| %d\t| %d\t| %.2f\t| %.2f\t| %.2f\t| %.2f\n",
+          reading->year, reading->month, reading->day, reading->hour,
+          reading->minute, reading->second, reading->lat, reading->lon,
+          reading->mag, reading->depth);
+}

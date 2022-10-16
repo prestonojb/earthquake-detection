@@ -2,14 +2,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <unistd.h>
 #include "mpi.h"
 #include <math.h>
 #include <time.h>
-#include "helper.h"
 #include <pthread.h>
+#include "helper.h"
 #include "activity_2.h"
 #include "activity_3.h"
-#include <unistd.h>
 
 #define pi 3.14159265358979323846
 #define LATITUDE_LOWER_BOUND -90
@@ -296,14 +296,6 @@ void generate(struct Sensor* reading)
   reading->lon = float_rand(LONGITUDE_LOWER_BOUND, LONGITUDE_UPPER_BOUND);
   reading->mag = float_rand(MAGNITUDE_LOWER_BOUND, MAGNITUDE_UPPER_BOUND);
   reading->depth = float_rand(0, DEPTH_UPPER_BOUND);
-}
-
-void printReading(struct Sensor* reading)
-{
-  printf("%d\t| %d\t| %d\t| %d\t| %d\t| %d\t| %.2f\t| %.2f\t| %.2f\t| %.2f\n",
-          reading->year, reading->month, reading->day, reading->hour,
-          reading->minute, reading->second, reading->lat, reading->lon,
-          reading->mag, reading->depth);
 }
 
 bool areMatchingReadings(struct Sensor* readingA, struct Sensor* readingB) {
