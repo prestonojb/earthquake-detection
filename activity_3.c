@@ -127,6 +127,7 @@ void update(MPI_Comm world_comm) {
         int conclusive = areMatchingReadings(&dataLog.reporterData, &balloonReading);
 
         saveLog(conclusive, intervalCount, dataLog, balloonReading);
+        printf("Base station logs alert to log.txt file. \n");
 
         sleep(INTERVAL);
         sentinelVal = checkSentinel();
@@ -146,7 +147,7 @@ void* recvDataLogFromNodesCommFunc(void* pArg) {
     defineDataLogType(&DataLogType, SensorType);
 
     MPI_Recv(pDataLog, 1, DataLogType, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    printf("Received seismic data from node %d! Comparing with balloon sensor.\n", pDataLog->reporterRank);
+    printf("Base station received seismic data from node %d, comparing with balloon sensor... \n", pDataLog->reporterRank);
 
     /* Clean up the type */
     MPI_Type_free( &SensorType );
@@ -332,7 +333,7 @@ void* terminationToNodesComm(void *pArguments) {
         MPI_Isend(&termination_msg, 1, MPI_INT, node_rank, TERMINATION_TAG, MPI_COMM_WORLD, &send_request[i]);
     }
     
-    printf("Waiting to receive send ACK of all termination messages from sensor nodes... \n");
+    // printf("Waiting to receive send ACK of all termination messages from sensor nodes... \n");
     MPI_Waitall(total_nodes, send_request, send_status);
 
     return 0;

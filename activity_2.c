@@ -26,7 +26,7 @@ void* startBalloon(void* pArg) {
         enqueue(sharedReadings, SIZE, newReading);
 
         // printReading2(&newReading);
-        printQueue(sharedReadings, SIZE);
+        // printQueue(sharedReadings, SIZE);
         sleep(INTERVAL);
     }
     return 0;

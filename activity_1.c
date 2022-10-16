@@ -126,7 +126,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
     MPI_Iprobe(MPI_ANY_SOURCE, TERMINATION_TAG, world_comm, &flag, &probe_status);
     if(flag == 1) {
 			MPI_Recv(&termination_msg_buf, 1, MPI_INT, probe_status.MPI_SOURCE, TERMINATION_TAG, world_comm, &status);
-      printf("Node %d received termination message = %d! \n", node_rank, termination_msg_buf);
+      printf("Node %d received termination message from base station. Terminating... \n", node_rank);
       isTerminated = true;
     }
 
@@ -192,10 +192,6 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
       if(compare_readingR == 1 && areMatchingReadings(&currReading, &readingR)) no_of_matches++;
 
       if(no_of_matches >= 2) {
-        // Send report to base station
-        printf("Sensor node %d sends report to base station! \n", node_rank);
-        printReading(&currReading);
-
         datalog.reporterRank = node_rank;
         datalog.reporterData = currReading;
         datalog.topRank = top_rank;
@@ -208,6 +204,8 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
         datalog.rightData = readingR;
 
         MPI_Send(&datalog, 1, DataLogType, BASE_STATION, 0, world_comm);
+        printf("Sensor node %d is triggered, send report to Base Station \n", node_rank);
+        // printReading(&currReading);
       }
     }
 
