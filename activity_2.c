@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include "helper.h"
 #include "activity_2.h"
+#include <unistd.h>
 
 #define SIZE 10
 
