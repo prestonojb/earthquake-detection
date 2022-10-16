@@ -58,7 +58,7 @@ void generateBalloonReading(struct Sensor* reading)
 
     reading->lat = float_rand(-20, -10);
     reading->lon = float_rand(150, 170);
-    reading->mag = float_rand(1, 5);
+    reading->mag = float_rand(2.5, 9);
     reading->depth = float_rand(4, 10);
 }
 
