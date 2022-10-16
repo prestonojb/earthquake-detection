@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <mpi.h>
 #include <pthread.h>
 #include <math.h>
@@ -29,6 +30,7 @@ void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType);
 int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b);
 void exitBase(MPI_Comm world_comm);
 int checkSentinel();
+void printColNode(FILE* f, int id, float lat, float lon, float mag, float depth);
 
 float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
 float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
@@ -129,12 +131,11 @@ void update(MPI_Comm world_comm) {
 
         // Retrieving last value from shared balloon readings array
         int finalVal = queue_head;  // From "helper.h"
-        struct Sensor balloonReading = readings[finalVal];
+        struct Sensor balloonReading = readings[finalVal-1];
 
-        // Todo: Compare balloon and nodes reading
+        int conclusive = areMatchingReadings(&dataLog.reporterData, &balloonReading);
 
-        int conclusive = 1;
-        saveLog(conclusive, intervalCount, dataLog, sensor);
+        saveLog(conclusive, intervalCount, dataLog, balloonReading);
 
         sleep(INTERVAL);
         sentinelVal = checkSentinel();
@@ -217,45 +218,45 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
 
     fprintf(f, "Iterations: %d\n", intervalCount);
 
-    fprintf(f, "Logged Time: %d:%d:%d  %d-%d-%d\n",
-            tm.tm_sec, tm.tm_min, tm.tm_hour,
+    fprintf(f, "Logged Time:\t%d:%d:%d  %d-%d-%d\n",
+            tm.tm_hour, tm.tm_min, tm.tm_sec,
             tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
 
     struct Sensor s = n.reporterData;
-    fprintf(f, "Alerted Time: %d:%d:%d  %d-%d-%d\n",
-            s.second, s.minute, s.hour, s.day, s.month, s.year);
+    fprintf(f, "Alerted Time:\t%d:%d:%d  %d-%d-%d\n",
+            s.hour, s.minute, s.second, s.day, s.month, s.year);
 
     char* c_result[2] = {"Inconclusive", "Conclusive"};
     fprintf(f, "Alert is %s\n\n", c_result[conclusion]);
 
     fprintf(f, "NODE SEISMIC REPORT:\n");
-    fprintf(f, "ID\tCoordinates\t\t\tMagnitude\n");
-    fprintf(f, "%d\t(%f, %f)\t\t\t%f\n\n", n.reporterRank, s.lat, s.lon, s.mag);
+    fprintf(f, "ID\tCoordinates\t\t\t\t\t\tMagnitude\tDepth\n");
+    fprintf(f, "%d\t(%.2f, %.2f)  \t\t\t\t%.2f\t\t%.2f\n\n", n.reporterRank, s.lat, s.lon, s.mag, s.depth);
 
     // Todo: Fill in Distance
-    fprintf(f, "ID\tCoordinates\tDistance\tMagnitude\n");
+    fprintf(f, "ID\tCoordinates\t\t\tDistance\tMagnitude\tDepth\n");
 
     struct Sensor s_t = n.topData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n", n.topRank, s_t.lat, s_t.lon, s_t.mag);
+    printColNode(f, n.topRank, s_t.lat, s_t.lon, s_t.mag, s_t.depth);
 
     struct Sensor s_b = n.bottomData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n", n.bottomRank, s_b.lat, s_b.lon, s_b.mag);
+    printColNode(f, n.bottomRank, s_b.lat, s_b.lon, s_b.mag, s_b.depth);
 
     struct Sensor s_l = n.leftData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n", n.leftRank, s_l.lat, s_l.lon, s_l.mag);
+    printColNode(f, n.leftRank, s_l.lat, s_l.lon, s_l.mag, s_l.depth);
 
     struct Sensor s_r = n.rightData;
-    fprintf(f, "%d\t(%f, %f)\t\t\t\t%f\n\n", n.rightRank, s_r.lat, s_r.lon, s_r.mag);
+    printColNode(f, n.rightRank, s_r.lat, s_r.lon, s_r.mag, s_r.depth);
 
-    fprintf(f, "BALLOON SEISMIC REPORT:\n");
+    fprintf(f, "\nBALLOON SEISMIC REPORT:\n");
     fprintf(f, "Report Time: %d:%d:%d  %d-%d-%d\n",
-            b.second, b.minute, b.hour, b.day, b.month, b.year);
+            b.hour, b.minute, b.second, b.day, b.month, b.year);
 
-    fprintf(f, "Coordinates: (%f, %f)\n", b.lat, b.lon);
+    fprintf(f, "Coordinates: (%.2f, %.2f)\n", b.lat, b.lon);
     // Todo: Distance from Balloon to Reporting Node
     fprintf(f, "Distance from Balloon to Reporting Node: -\n");
-    fprintf(f, "Magnitude: %f\n", b.mag);
-    fprintf(f, "Magnitude difference with Reporting Node: %f\n\n", fabs(s.mag - b.mag));
+    fprintf(f, "Magnitude: %.2f\n", b.mag);
+    fprintf(f, "Magnitude difference with Reporting Node: %.2f\n\n", fabs(s.mag - b.mag));
 
     // Todo: Communication Time
     fprintf(f, "Communication Time (in seconds): - s\n");
@@ -268,6 +269,15 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     fclose(f);
 
     return 0;
+}
+
+void printColNode(FILE* f, int id, float lat, float lon, float mag, float depth) {
+    if (id == -2) {
+        fprintf(f, "-\t(----, ----)\t\t-\t\t\t-\t\t\t-\n");
+    }
+    else {
+        fprintf(f, "%d\t(%.2f, %.2f)  \t-\t\t\t%.2f\t\t%.2f\n", id, lat, lon, mag, depth);
+    }
 }
 
 /**
