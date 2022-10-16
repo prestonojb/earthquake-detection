@@ -1,0 +1,7 @@
+{
+  "files.associations": {
+    "helper.h": "c",
+    "stdio.h": "c",
+    "activity_2.h": "c"
+  }
+}

@@ -10,18 +10,12 @@
 #include <mpi.h>
 #include <pthread.h>
 #include <math.h>
+#include <unistd.h>
+#include "helper.h"
 #include "activity_1.h"
 #include "activity_2.h"
-#include "helper.h"
-#include <unistd.h>
 
-#define INTERVAL 5
-
-#define DEFAULT_MAGNITUDE_UPPER_THRESHOLD 0
-#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 100000
-#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 1000
-
-#define TERMINATION_TAG 10
+#define READING_INTERVAL_IN_S 5
 
 void update();
 void createBalloonPosix();
@@ -31,6 +25,8 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
 void exitBase(MPI_Comm world_comm);
 int checkSentinel();
 void printColNode(FILE* f, int id, float lat, float lon, float dist, float mag, float depth);
+void* terminationToNodesComm();
+void* recvDataLogFromNodesCommFunc(void* pArg);
 
 float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
 float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
@@ -105,30 +101,19 @@ void createBalloonPosix() {
  */
 void update(MPI_Comm world_comm) {
     int intervalCount = 0;
-
-    struct Sensor sensor;
-    MPI_Datatype SensorType;
-    defineSensorType(&SensorType);
-
     struct DataLog dataLog;
-    MPI_Datatype DataLogType;
-    defineDataLogType(&DataLogType, SensorType);
 
     // Loop until sentinel value encountered
     int sentinelVal = checkSentinel();
     while (sentinelVal == 0) {
-
         intervalCount++;
 
         printf("Listening for seismic activity...\n");
-        
-        MPI_Recv(&dataLog, 1, DataLogType, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        printf("Received seismic data from node %d! Comparing with balloon sensor.\n", dataLog.reporterRank);
-        
-        
-        // Todo: use POSIX to send and receive
 
-
+        pthread_t recv_datalog_from_nodes_comm_t;
+        pthread_create(&recv_datalog_from_nodes_comm_t, 0, recvDataLogFromNodesCommFunc, &dataLog);
+        pthread_join(recv_datalog_from_nodes_comm_t, NULL);
+        
         // Retrieving last value from shared balloon readings array
         int finalVal = queue_head;  // From "helper.h"
         struct Sensor balloonReading = readings[finalVal-1];
@@ -136,15 +121,32 @@ void update(MPI_Comm world_comm) {
         int conclusive = areMatchingReadings(&dataLog.reporterData, &balloonReading);
 
         saveLog(conclusive, intervalCount, dataLog, balloonReading);
+        printf("Base station logs alert from node %d to log.txt file. \n", dataLog.reporterRank);
 
-        sleep(INTERVAL);
+        sleep(READING_INTERVAL_IN_S);
         sentinelVal = checkSentinel();
     }
 
+    exitBase(MPI_COMM_WORLD);
+}
+
+void* recvDataLogFromNodesCommFunc(void* pArg) {
+    struct DataLog *pDataLog = pArg;
+
+    struct Sensor sensor;
+    MPI_Datatype SensorType;
+    defineSensorType(&SensorType);
+
+    MPI_Datatype DataLogType;
+    defineDataLogType(&DataLogType, SensorType);
+
+    MPI_Recv(pDataLog, 1, DataLogType, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    printf("Base station received seismic data from node %d, comparing with balloon sensor... \n", pDataLog->reporterRank);
+
     /* Clean up the type */
     MPI_Type_free( &SensorType );
-
-    exitBase(MPI_COMM_WORLD);
+    MPI_Type_free( &DataLogType );
+    return 0;
 }
 
 /**
@@ -282,6 +284,9 @@ void printColNode(FILE* f, int id, float lat, float lon, float dist, float mag, 
         fprintf(f, "%d\t(%.2f, %.2f)  \t%.2f\t\t%.2f\t\t%.2f\n", id, lat, lon, dist, mag, depth);
     }
 }
+struct termination_to_nodes_arg_struct {
+    int total_nodes;
+};
 
 /**
  * Exit the program.
@@ -301,20 +306,35 @@ void exitBase(MPI_Comm world_comm) {
     MPI_Comm_size(world_comm, &total_processes);
     int total_nodes = total_processes - 1;
     
-    int termination_msg = 0;
+    struct termination_to_nodes_arg_struct args;
+
+    args.total_nodes = total_nodes;
+
+    pthread_t termination_to_nodes_comm_t;
+    pthread_create(&termination_to_nodes_comm_t, 0, terminationToNodesComm, (void*) &args);
+    pthread_join(termination_to_nodes_comm_t, NULL);
+}
+
+void* terminationToNodesComm(void *pArguments) {
+    struct termination_to_nodes_arg_struct *pArgs = pArguments;
+    int total_nodes = pArgs->total_nodes;
 
     MPI_Request send_request[total_nodes];
     MPI_Status send_status[total_nodes];
+    
+    int termination_msg = 0;
 
     for(int i=0; i < total_nodes; i++) {
         int node_rank = i+1; // offset base station rank
         
         printf("Send termination message to node %d \n", node_rank);
-        MPI_Isend(&termination_msg, 1, MPI_INT, node_rank, TERMINATION_TAG, world_comm, &send_request[i]);
+        MPI_Isend(&termination_msg, 1, MPI_INT, node_rank, TERMINATION_TAG, MPI_COMM_WORLD, &send_request[i]);
     }
     
-    printf("Waiting to receive send ACK of all termination messages from sensor nodes... \n");
+    // printf("Waiting to receive send ACK of all termination messages from sensor nodes... \n");
     MPI_Waitall(total_nodes, send_request, send_status);
+
+    return 0;
 }
 
 /**
