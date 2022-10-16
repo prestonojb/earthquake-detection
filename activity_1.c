@@ -193,7 +193,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
       if(compare_readingL == 1 && areMatchingReadings(&currReading, &readingL)) no_of_matches++;
       if(compare_readingR == 1 && areMatchingReadings(&currReading, &readingR)) no_of_matches++;
 
-      if(no_of_matches >= 2 && node_rank == 0) {
+      if(no_of_matches >= 2) {
         // Send report to base station
         printf("Sensor node %d sends report to base station! \n", node_rank);
         printReading(&currReading);
