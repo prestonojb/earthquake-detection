@@ -20,12 +20,14 @@
 #define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 100000
 #define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 1000
 
+#define TERMINATION_TAG 10
+
 void update();
 void createBalloonPosix();
 void defineSensorType(MPI_Datatype* SensorType);
 void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType);
 int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b);
-void exitBase(int sentinelValue);
+void exitBase(MPI_Comm world_comm);
 int checkSentinel();
 
 float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
@@ -78,14 +80,10 @@ int main(int argc, char* argv[]) {
 
     if (world_rank == 0) {
         createBalloonPosix(readings);
-        update();
+        update(MPI_COMM_WORLD);
     } else {
         init_nodes(m, n, MAGNITUDE_UPPER_THRESHOLD, DIFF_IN_DISTANCE_THRESHOLD_IN_KM, DIFF_IN_MAGNITUDE_THRESHOLD, MPI_COMM_WORLD, nodes_comm);
     }
-
-    // if (rank == 0) update();
-    // else if (rank == total_nodes - 1) init_balloon();
-    // else init_nodes(argc, argv, rank, total_nodes - 2);
 
     MPI_Finalize();
     return 0;
@@ -103,7 +101,7 @@ void createBalloonPosix() {
  * Runs continuously with a fixed delay.
  * Stops when encountered a sentinel value.
  */
-void update() {
+void update(MPI_Comm world_comm) {
     int intervalCount = 0;
 
     struct Sensor sensor;
@@ -145,7 +143,7 @@ void update() {
     /* Clean up the type */
     MPI_Type_free( &SensorType );
 
-    exitBase(sentinelVal);
+    exitBase(MPI_COMM_WORLD);
 }
 
 /**
@@ -277,7 +275,7 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
  * Send an exit signal to all nodes before quitting.
  * @param sentinelValue Exit status
  */
-void exitBase(int sentinelValue) {
+void exitBase(MPI_Comm world_comm) {
 
     // Comm Balloon to quit
     pthread_t balloon_comm;
@@ -285,11 +283,25 @@ void exitBase(int sentinelValue) {
     pthread_create(&balloon_comm, 0, receiveMessage, &message);
     pthread_join(balloon_comm, NULL);
 
-    if (sentinelValue == 1)
-        printf("Sentinel value detected. Quitting!\n");
-    else
-        printf("Encountered error reading sentinel file");
+    // Send termination message to sensor nodes
+    int total_processes;
+    MPI_Comm_size(world_comm, &total_processes);
+    int total_nodes = total_processes - 1;
+    
+    int termination_msg = 0;
 
+    MPI_Request send_request[total_nodes];
+    MPI_Status send_status[total_nodes];
+
+    for(int i=0; i < total_nodes; i++) {
+        int node_rank = i+1; // offset base station rank
+        
+        printf("Send termination message to node %d \n", node_rank);
+        MPI_Isend(&termination_msg, 1, MPI_INT, node_rank, TERMINATION_TAG, world_comm, &send_request[i]);
+    }
+    
+    printf("Waiting to receive send ACK of all termination messages from sensor nodes... \n");
+    MPI_Waitall(total_nodes, send_request, send_status);
 }
 
 /**

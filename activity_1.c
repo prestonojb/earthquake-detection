@@ -27,7 +27,7 @@
 #define BASE_STATION 0
 #define READING_INTERVAL_IN_S 5
 
-#define TERMINATION_TAG -1
+#define TERMINATION_TAG 10
 
 void generate(struct Sensor* reading);
 void printReading(struct Sensor* reading);
@@ -108,9 +108,29 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
   MPI_Cart_shift(comm2D, SHIFT_ROW, DISP, &top_rank, &bottom_rank);
   MPI_Cart_shift(comm2D, SHIFT_COL, DISP, &left_rank, &right_rank);
   
+  MPI_Status probe_status;
+	int flag = 0;
+  int termination_msg_buf;
+  bool isTerminated = false;
+
+  MPI_Datatype SensorType;
+  defineSensorType(&SensorType);
+  
+  MPI_Datatype DataLogType;
+  defineDataLogType(&DataLogType, SensorType);
+
+  struct DataLog datalog;
+
   // Generates reading indefinitely until a termination message is received from base station
   while(1) {
-    if(isTerminated(world_comm)) break;
+    // if(isTerminated) break;
+
+    MPI_Iprobe(MPI_ANY_SOURCE, TERMINATION_TAG, world_comm, &flag, &probe_status);
+    if(flag == 1) {
+			MPI_Recv(&termination_msg_buf, 1, MPI_INT, probe_status.MPI_SOURCE, TERMINATION_TAG, world_comm, &status);
+      printf("Node %d received termination message = %d! \n", node_rank, termination_msg_buf);
+      isTerminated = true;
+    }
 
     generate(&currReading);
     // printf("Node Rank %d => ", node_rank);
@@ -173,30 +193,19 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
       if(compare_readingL == 1 && areMatchingReadings(&currReading, &readingL)) no_of_matches++;
       if(compare_readingR == 1 && areMatchingReadings(&currReading, &readingR)) no_of_matches++;
 
-      if(no_of_matches >= 2 && node_rank == 0) {
+      if(no_of_matches >= 2) {
         // Send report to base station
         printf("Sensor node %d sends report to base station! \n", node_rank);
         printReading(&currReading);
 
-        MPI_Datatype SensorType;
-        defineSensorType(&SensorType);
-        
-        MPI_Datatype DataLogType;
-        defineDataLogType(&DataLogType, SensorType);
-
-        struct DataLog datalog;
         datalog.reporterRank = node_rank;
         datalog.reporterData = currReading;
-
         datalog.topRank = top_rank;
         datalog.topData = readingT;
-
         datalog.bottomRank = bottom_rank;
         datalog.bottomData = readingB;
-
         datalog.leftRank = left_rank;
         datalog.leftData = readingL;
-
         datalog.rightRank = right_rank;
         datalog.rightData = readingR;
 
@@ -207,22 +216,10 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
     sleep(READING_INTERVAL_IN_S);
   }
 
+  MPI_Type_free(&SensorType);
+  MPI_Type_free(&DataLogType);
   MPI_Comm_free(&comm2D);
   return 0;
-}
-
-void isTerminated(MPI_Comm world_comm) {
-  MPI_Status probe_status;
-	int flag = 0;
-  MPI_Iprobe(BASE_STATION, TERMINATION_TAG, world_comm, &flag, &probe_status);
-  
-  if(flag == 1){
-    int recv_buf;
-    flag = 0;
-
-    MPI_Recv(&recv_buf, 1, MPI_INT, BASE_STATION, TERMINATION_TAG, world_comm, &status);
-    printf("MPI Master Process received exit %d value from base station", recv_buf);
-  }
 }
 
 /* Send/receive request to adjacent nodes
