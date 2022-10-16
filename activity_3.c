@@ -30,7 +30,7 @@ void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType);
 int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b);
 void exitBase(MPI_Comm world_comm);
 int checkSentinel();
-void printColNode(FILE* f, int id, float lat, float lon, float mag, float depth);
+void printColNode(FILE* f, int id, float lat, float lon, float dist, float mag, float depth);
 
 float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
 float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
@@ -233,28 +233,31 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     fprintf(f, "ID\tCoordinates\t\t\t\t\t\tMagnitude\tDepth\n");
     fprintf(f, "%d\t(%.2f, %.2f)  \t\t\t\t%.2f\t\t%.2f\n\n", n.reporterRank, s.lat, s.lon, s.mag, s.depth);
 
-    // Todo: Fill in Distance
     fprintf(f, "ID\tCoordinates\t\t\tDistance\tMagnitude\tDepth\n");
 
     struct Sensor s_t = n.topData;
-    printColNode(f, n.topRank, s_t.lat, s_t.lon, s_t.mag, s_t.depth);
+    float distSensor = distance(s.lat, s.lon, s_t.lat, s_t.lon);
+    printColNode(f, n.topRank, s_t.lat, s_t.lon, distSensor, s_t.mag, s_t.depth);
 
     struct Sensor s_b = n.bottomData;
-    printColNode(f, n.bottomRank, s_b.lat, s_b.lon, s_b.mag, s_b.depth);
+    distSensor = distance(s.lat, s.lon, s_b.lat, s_b.lon);
+    printColNode(f, n.bottomRank, s_b.lat, s_b.lon, distSensor, s_b.mag, s_b.depth);
 
     struct Sensor s_l = n.leftData;
-    printColNode(f, n.leftRank, s_l.lat, s_l.lon, s_l.mag, s_l.depth);
+    distSensor = distance(s.lat, s.lon, s_l.lat, s_l.lon);
+    printColNode(f, n.leftRank, s_l.lat, s_l.lon, distSensor, s_l.mag, s_l.depth);
 
     struct Sensor s_r = n.rightData;
-    printColNode(f, n.rightRank, s_r.lat, s_r.lon, s_r.mag, s_r.depth);
+    distSensor = distance(s.lat, s.lon, s_r.lat, s_r.lon);
+    printColNode(f, n.rightRank, s_r.lat, s_r.lon, distSensor, s_r.mag, s_r.depth);
 
     fprintf(f, "\nBALLOON SEISMIC REPORT:\n");
     fprintf(f, "Report Time: %d:%d:%d  %d-%d-%d\n",
             b.hour, b.minute, b.second, b.day, b.month, b.year);
 
+    float distBalloon2Node = distance(b.lat, b.lon, s.lat, s.lon);
     fprintf(f, "Coordinates: (%.2f, %.2f)\n", b.lat, b.lon);
-    // Todo: Distance from Balloon to Reporting Node
-    fprintf(f, "Distance from Balloon to Reporting Node: -\n");
+    fprintf(f, "Distance from Balloon to Reporting Node: %.2f\n", distBalloon2Node);
     fprintf(f, "Magnitude: %.2f\n", b.mag);
     fprintf(f, "Magnitude difference with Reporting Node: %.2f\n\n", fabs(s.mag - b.mag));
 
@@ -271,12 +274,12 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     return 0;
 }
 
-void printColNode(FILE* f, int id, float lat, float lon, float mag, float depth) {
+void printColNode(FILE* f, int id, float lat, float lon, float dist, float mag, float depth) {
     if (id == -2) {
         fprintf(f, "-\t(----, ----)\t\t-\t\t\t-\t\t\t-\n");
     }
     else {
-        fprintf(f, "%d\t(%.2f, %.2f)  \t-\t\t\t%.2f\t\t%.2f\n", id, lat, lon, mag, depth);
+        fprintf(f, "%d\t(%.2f, %.2f)  \t%.2f\t\t%.2f\t\t%.2f\n", id, lat, lon, dist, mag, depth);
     }
 }
 
