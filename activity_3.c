@@ -15,7 +15,7 @@
 #include "activity_1.h"
 #include "activity_2.h"
 
-#define READING_INTERVAL_IN_S 5
+#define READING_INTERVAL_IN_S 1
 
 void update();
 void createBalloonPosix();
@@ -291,8 +291,8 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     fprintf(f, "Magnitude: %.2f\n", b.mag);
     fprintf(f, "Magnitude difference with Reporting Node: %.2f\n\n", fabs(s.mag - b.mag));
 
-    // Todo: Communication Time
-    fprintf(f, "Communication Time (in seconds): - s\n");
+    int time = tm.tm_hour - s.hour;
+    fprintf(f, "Communication Time (in seconds): %d s\n", time);
     fprintf(f, "Total messages sent by Node to Base: 1\n");
     fprintf(f, "Coordinate Threshold: 20\n"); // Todo: hardcode this value
     fprintf(f, "Magnitude Difference Threshold: 0.5\n"); // Todo: hardcode this value
