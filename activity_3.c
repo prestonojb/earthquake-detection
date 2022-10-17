@@ -35,8 +35,13 @@ float DIFF_IN_MAGNITUDE_THRESHOLD = DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
 // Shared Balloon sensor readings
 #define SIZE 10
 struct Sensor readings[SIZE];
+pthread_t balloon_comm[2];
 
 int main(int argc, char* argv[]) {
+    // Create empty log file
+    FILE *f = fopen("log.txt","w");
+    fclose(f);
+
     // Initialise variables
     int world_rank, total_processes, provided;
     
@@ -83,7 +88,6 @@ int main(int argc, char* argv[]) {
         init_nodes(m, n, MAGNITUDE_UPPER_THRESHOLD, DIFF_IN_DISTANCE_THRESHOLD_IN_KM, DIFF_IN_MAGNITUDE_THRESHOLD, MPI_COMM_WORLD, nodes_comm);
     }
 
-    MPI_Finalize();
     return 0;
 }
 
@@ -91,8 +95,7 @@ int main(int argc, char* argv[]) {
  * Create a POSIX thread to start the balloon sensor
  */
 void createBalloonPosix() {
-    pthread_t balloon_comm;
-    pthread_create(&balloon_comm, 0, startBalloon, (void*) readings);
+    pthread_create(&balloon_comm[0], 0, startBalloon, (void*) readings);
 }
 
 /**
@@ -135,12 +138,12 @@ void update(MPI_Comm world_comm) {
         pthread_t recv_datalog_from_nodes_comm_t;
         pthread_create(&recv_datalog_from_nodes_comm_t, 0, recvDataLogFromNodesCommFunc, &dataLog);
         pthread_join(recv_datalog_from_nodes_comm_t, NULL);
-        
+
         // Retrieving last value from shared balloon readings array
         int finalVal = queue_head;  // From "helper.h"
         struct Sensor balloonReading = readings[finalVal-1];
 
-        int conclusive = areMatchingReadings(&dataLog.reporterData, &balloonReading);
+        int conclusive = areMatchingMagnitudes(dataLog.reporterData.mag, balloonReading.mag);
 
         saveLog(conclusive, intervalCount, dataLog, balloonReading);
         printf("Base station logs alert from node %d to log.txt file. \n", dataLog.reporterRank);
@@ -291,12 +294,12 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     fprintf(f, "Magnitude: %.2f\n", b.mag);
     fprintf(f, "Magnitude difference with Reporting Node: %.2f\n\n", fabs(s.mag - b.mag));
 
-    int time = tm.tm_hour - s.hour;
-    fprintf(f, "Communication Time (in seconds): %d s\n", time);
+    float time = tm.tm_sec - s.second;
+    fprintf(f, "Communication Time (in seconds): %.3fs\n", time);
     fprintf(f, "Total messages sent by Node to Base: 1\n");
-    fprintf(f, "Coordinate Threshold: 20\n"); // Todo: hardcode this value
-    fprintf(f, "Magnitude Difference Threshold: 0.5\n"); // Todo: hardcode this value
-    fprintf(f, "Earthquake Magnitude Threshold: 2.5\n"); // Todo: hardcode this value
+    fprintf(f, "Coordinate Threshold: %.2f\n", DIFF_IN_DISTANCE_THRESHOLD_IN_KM);
+    fprintf(f, "Magnitude Difference Threshold: %.2f\n", DIFF_IN_MAGNITUDE_THRESHOLD);
+    fprintf(f, "Earthquake Magnitude Threshold: %.2f\n", MAGNITUDE_UPPER_THRESHOLD);
 
     fprintf(f,"%s\n%s\n\n", line, line);
     fclose(f);
@@ -322,13 +325,14 @@ struct termination_to_nodes_arg_struct {
  * @param sentinelValue Exit status
  */
 void exitBase(MPI_Comm world_comm) {
-    // Comm Balloon to quit
-    pthread_t balloon_comm;
-    int message = 1;
-    pthread_create(&balloon_comm, 0, receiveMessage, &message);
     printf("Balloon sensor node exiting...");
-    pthread_join(balloon_comm, NULL);
+    // Comm Balloon to quit
+    int message = 1;
+    pthread_create(&balloon_comm[1], 0, receiveMessage, &message);
+    pthread_join(balloon_comm[0], NULL);
+    pthread_join(balloon_comm[1], NULL);
 
+    printf("Sensor Nodes exiting...");
     // Send termination message to sensor nodes
     int total_processes;
     MPI_Comm_size(world_comm, &total_processes);
@@ -341,6 +345,9 @@ void exitBase(MPI_Comm world_comm) {
     pthread_t termination_to_nodes_comm_t;
     pthread_create(&termination_to_nodes_comm_t, 0, terminationToNodesComm, (void*) &args);
     pthread_join(termination_to_nodes_comm_t, NULL);
+
+    printf("Base has quit successfully!");
+    MPI_Finalize();
 }
 
 /**

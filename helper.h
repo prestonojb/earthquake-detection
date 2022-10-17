@@ -6,8 +6,8 @@
 #define pi 3.14159265358979323846
 
 #define DEFAULT_MAGNITUDE_UPPER_THRESHOLD 2.5
-#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 10
-#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 10
+#define DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM 20
+#define DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD 1
 
 #define QUEUE_SIZE 10
 
@@ -44,6 +44,7 @@ struct DataLog {
 extern int queue_head;
 void enqueue(struct Sensor arr[], int length, struct Sensor element);
 float float_rand(float min, float max);
+float float_rand_seed(float min, float max, int seed);
 void printReading(struct Sensor* reading);
 
 #endif

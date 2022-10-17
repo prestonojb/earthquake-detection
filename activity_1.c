@@ -16,7 +16,7 @@
 #define LONGITUDE_LOWER_BOUND -180
 #define LONGITUDE_UPPER_BOUND 180
 #define MAGNITUDE_LOWER_BOUND 0
-#define MAGNITUDE_UPPER_BOUND 9
+#define MAGNITUDE_UPPER_BOUND 5
 #define DEPTH_UPPER_BOUND 700
 
 #define SHIFT_ROW 0
@@ -25,7 +25,7 @@
 
 #define READING_INTERVAL_IN_S 5
 
-void generateNodeReading(struct Sensor* reading);
+void generateNodeReading(struct Sensor* reading, int rank);
 void printReading(struct Sensor* reading);
 
 void* AdjNodesCommFunc(void* pArgs);
@@ -126,11 +126,12 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
       isTerminated = true;
     }
 
-    generateNodeReading(&currReading);
+    generateNodeReading(&currReading, node_rank);
     // printf("Node Rank %d => ", node_rank);
     // printReading(&currReading);
     
     if (currReading.mag > MAGNITUDE_UPPER_THRESHOLD) {
+        //printf("Node %d triggered magnitude %f\n", node_rank, currReading.mag);
       compare_adj_readings = 1;
     }
 
@@ -257,7 +258,7 @@ void* AdjNodesCommFunc(void* pArguments) {
  * 
  * @param reading 
  */
-void generateNodeReading(struct Sensor* reading)
+void generateNodeReading(struct Sensor* reading, int rank)
 {
   time_t t = time(NULL);
   struct tm tm = *localtime(&t);
@@ -268,11 +269,11 @@ void generateNodeReading(struct Sensor* reading)
   reading->minute = tm.tm_min;
   reading->second = tm.tm_sec;
 
-  float_rand(0, 0); // Workaround for same first random number
-  reading->lat = float_rand(LATITUDE_LOWER_BOUND, LATITUDE_UPPER_BOUND);
-  reading->lon = float_rand(LONGITUDE_LOWER_BOUND, LONGITUDE_UPPER_BOUND);
-  reading->mag = float_rand(MAGNITUDE_LOWER_BOUND, MAGNITUDE_UPPER_BOUND);
-  reading->depth = float_rand(0, DEPTH_UPPER_BOUND);
+  reading->lat = float_rand_seed(LATITUDE_LOWER_BOUND, LATITUDE_UPPER_BOUND, rank);
+  reading->lon = float_rand_seed(LONGITUDE_LOWER_BOUND, LONGITUDE_UPPER_BOUND, rank);
+  reading->mag = float_rand_seed(MAGNITUDE_LOWER_BOUND, MAGNITUDE_UPPER_BOUND, rank);
+  reading->depth = float_rand_seed(0, DEPTH_UPPER_BOUND, rank);
+    //printf("Node %d: %f, %f, %f, %f\n", rank, reading->lat, reading->lon, reading->mag, reading->depth);
 }
 
 /**

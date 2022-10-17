@@ -30,6 +30,24 @@ float float_rand(float min, float max)
     return min + (rand() / div);
 }
 
+
+/**
+ * Generate a random floating point number from min to max
+ * @param min
+ * @param max
+ * @return
+ */
+float float_rand_seed(float min, float max, int seed)
+{
+    float range = (max - min);
+    float div = RAND_MAX / range;
+    float f = 0;
+    for (int i = 0; i <= seed; i++) {
+        f = min + (rand() / div);
+    }
+    return f;
+}
+
 void printReading(struct Sensor* reading)
 {
   printf("%d\t| %d\t| %d\t| %d\t| %d\t| %d\t| %.2f\t| %.2f\t| %.2f\t| %.2f\n",
