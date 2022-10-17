@@ -45,23 +45,6 @@ void* receiveMessage(void *pArg) {
     return 0;
 }
 
-void generateBalloonReading(struct Sensor* reading)
-{
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    reading->year = tm.tm_year + 1900;
-    reading->month = tm.tm_mon + 1;
-    reading->day = tm.tm_mday;
-    reading->hour = tm.tm_hour;
-    reading->minute = tm.tm_min;
-    reading->second = tm.tm_sec;
-
-    reading->lat = float_rand(-20, -10);
-    reading->lon = float_rand(150, 170);
-    reading->mag = float_rand(2.5, 9);
-    reading->depth = float_rand(4, 10);
-}
-
 void printQueue(struct Sensor arr[], int length)
 {
     printf(" YYYY\t| MM\t| DD\t| HH\t| MM\t| SS\t| Latitude\t| Longitude\t| Mag\t|Depth\n");

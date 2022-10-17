@@ -96,6 +96,28 @@ void createBalloonPosix() {
 }
 
 /**
+ * @brief Generate balloon reading, based on set magnitude threshold
+ * 
+ * @param reading 
+ */
+void generateBalloonReading(struct Sensor* reading)
+{
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    reading->year = tm.tm_year + 1900;
+    reading->month = tm.tm_mon + 1;
+    reading->day = tm.tm_mday;
+    reading->hour = tm.tm_hour;
+    reading->minute = tm.tm_min;
+    reading->second = tm.tm_sec;
+
+    reading->lat = float_rand(-20, -10);
+    reading->lon = float_rand(150, 170);
+    reading->mag = float_rand(MAGNITUDE_UPPER_THRESHOLD, 9);
+    reading->depth = float_rand(4, 10);
+}
+
+/**
  * Runs continuously with a fixed delay.
  * Stops when encountered a sentinel value.
  */
@@ -130,6 +152,12 @@ void update(MPI_Comm world_comm) {
     exitBase(MPI_COMM_WORLD);
 }
 
+/**
+ * @brief Base station to receive alert report from sensor nodes
+ * 
+ * @param pArg 
+ * @return void* 
+ */
 void* recvDataLogFromNodesCommFunc(void* pArg) {
     struct DataLog *pDataLog = pArg;
 
@@ -294,11 +322,11 @@ struct termination_to_nodes_arg_struct {
  * @param sentinelValue Exit status
  */
 void exitBase(MPI_Comm world_comm) {
-
     // Comm Balloon to quit
     pthread_t balloon_comm;
     int message = 1;
     pthread_create(&balloon_comm, 0, receiveMessage, &message);
+    printf("Balloon sensor node exiting...");
     pthread_join(balloon_comm, NULL);
 
     // Send termination message to sensor nodes
@@ -315,6 +343,12 @@ void exitBase(MPI_Comm world_comm) {
     pthread_join(termination_to_nodes_comm_t, NULL);
 }
 
+/**
+ * @brief Sends termination message to sensor nodes
+ * 
+ * @param pArguments 
+ * @return void* 
+ */
 void* terminationToNodesComm(void *pArguments) {
     struct termination_to_nodes_arg_struct *pArgs = pArguments;
     int total_nodes = pArgs->total_nodes;
