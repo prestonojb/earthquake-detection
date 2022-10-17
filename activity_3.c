@@ -37,7 +37,10 @@ float DIFF_IN_MAGNITUDE_THRESHOLD = DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
 struct Sensor readings[SIZE];
 pthread_t balloon_comm[2];
 
+struct timeval start_time, curr_time;
+
 int main(int argc, char* argv[]) {
+
     // Create empty log file
     FILE *f = fopen("log.txt","w");
     fclose(f);
@@ -125,6 +128,9 @@ void generateBalloonReading(struct Sensor* reading)
  * Stops when encountered a sentinel value.
  */
 void update(MPI_Comm world_comm) {
+    // Get start time
+    gettimeofday(&start_time, NULL);
+
     int intervalCount = 0;
     struct DataLog dataLog;
 
@@ -139,6 +145,8 @@ void update(MPI_Comm world_comm) {
         pthread_create(&recv_datalog_from_nodes_comm_t, 0, recvDataLogFromNodesCommFunc, &dataLog);
         pthread_join(recv_datalog_from_nodes_comm_t, NULL);
 
+        gettimeofday(&curr_time, NULL);
+
         // Retrieving last value from shared balloon readings array
         int finalVal = queue_head;  // From "helper.h"
         struct Sensor balloonReading = readings[finalVal-1];
@@ -146,9 +154,9 @@ void update(MPI_Comm world_comm) {
         int conclusive = areMatchingMagnitudes(dataLog.reporterData.mag, balloonReading.mag);
 
         saveLog(conclusive, intervalCount, dataLog, balloonReading);
-        printf("Base station logs alert from node %d to log.txt file. \n", dataLog.reporterRank);
+        //printf("Base station logs alert from node %d to log.txt file. \n", dataLog.reporterRank);
 
-        sleep(READING_INTERVAL_IN_S);
+        //sleep(READING_INTERVAL_IN_S);
         sentinelVal = checkSentinel();
     }
 
@@ -249,7 +257,9 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     if (!f) return 1;
     fprintf(f,"%s\n%s\n", line, line);
 
-    fprintf(f, "Iterations: %d\n", intervalCount);
+    double time_elapsed = (double)(curr_time.tv_usec - start_time.tv_usec) / 1000000 +
+            (double)(curr_time.tv_sec - start_time.tv_sec);
+    fprintf(f, "Time Elapsed: %.4fs\n", time_elapsed);
 
     fprintf(f, "Logged Time:\t%d:%d:%d  %d-%d-%d\n",
             tm.tm_hour, tm.tm_min, tm.tm_sec,
@@ -295,7 +305,7 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     fprintf(f, "Magnitude difference with Reporting Node: %.2f\n\n", fabs(s.mag - b.mag));
 
     float time = tm.tm_sec - s.second;
-    fprintf(f, "Communication Time (in seconds): %.3fs\n", time);
+    //fprintf(f, "Communication Time (in seconds): %.3fs\n", time);
     fprintf(f, "Total messages sent by Node to Base: 1\n");
     fprintf(f, "Coordinate Threshold: %.2f\n", DIFF_IN_DISTANCE_THRESHOLD_IN_KM);
     fprintf(f, "Magnitude Difference Threshold: %.2f\n", DIFF_IN_MAGNITUDE_THRESHOLD);

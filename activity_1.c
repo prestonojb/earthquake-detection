@@ -105,7 +105,6 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
   MPI_Status probe_status;
 	int flag = 0;
   int termination_msg_buf;
-  bool isTerminated = false;
 
   MPI_Datatype SensorType;
   defineSensorType(&SensorType);
@@ -117,13 +116,12 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
 
   // Generates reading indefinitely until a termination message is received from base station
   while(1) {
-    // if(isTerminated) break;
 
     MPI_Iprobe(MPI_ANY_SOURCE, TERMINATION_TAG, world_comm, &flag, &probe_status);
     if(flag == 1) {
 			MPI_Recv(&termination_msg_buf, 1, MPI_INT, probe_status.MPI_SOURCE, TERMINATION_TAG, world_comm, &status);
       printf("Node %d received termination message from base station. Terminating... \n", node_rank);
-      isTerminated = true;
+        break;
     }
 
     generateNodeReading(&currReading, node_rank);
