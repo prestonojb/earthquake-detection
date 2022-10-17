@@ -153,32 +153,6 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
     readingL = *args.pReadingL;
     readingR = *args.pReadingR;
 
-    // if(node_rank == 0){
-    //   if(compare_readingT == 1) {
-    //     printf("readingT: \n");
-    //     printReading(&readingT);
-    //     printf("\n");
-    //   }
-      
-    //   if(compare_readingB == 1) {
-    //     printf("readingB: \n");
-    //     printReading(&readingB);
-    //     printf("\n");
-    //   }
-
-    //   if(compare_readingL == 1) {
-    //     printf("readingL: \n");
-    //     printReading(&readingL);
-    //     printf("\n");
-    //   }
-
-    //   if(compare_readingR == 1) {
-    //     printf("readingR: \n");
-    //     printReading(&readingR);
-    //     printf("\n");
-    //   }
-    // }
-
     // Receive requested readings
     if (compare_adj_readings == 1) {
       int no_of_matches = 0;
@@ -214,9 +188,11 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
   return 0;
 }
 
-/* Send/receive request to adjacent nodes
-   Writes to readingT, readingB, readingL, readingR in main() scope
-*/
+/**
+ * @brief Send/receive request to adjacent nodes
+ * Writes to readingT, readingB, readingL, readingR
+ */
+
 void* AdjNodesCommFunc(void* pArguments) {
   struct adj_nodes_arg_struct *pArgs = pArguments;
 
@@ -276,6 +252,11 @@ void* AdjNodesCommFunc(void* pArguments) {
   return 0;
 }
 
+/**
+ * @brief Generate sensor node reading 
+ * 
+ * @param reading 
+ */
 void generateNodeReading(struct Sensor* reading)
 {
   time_t t = time(NULL);
@@ -294,6 +275,14 @@ void generateNodeReading(struct Sensor* reading)
   reading->depth = float_rand(0, DEPTH_UPPER_BOUND);
 }
 
+/**
+ * @brief Returns true if both readings match, else false
+ * 
+ * @param readingA 
+ * @param readingB 
+ * @return true 
+ * @return false 
+ */
 bool areMatchingReadings(struct Sensor* readingA, struct Sensor* readingB) {
   float latA = readingA->lat;
   float longA = readingA->lon;
