@@ -117,7 +117,7 @@ int init_nodes(int m, int n, float magnitude_upper_threshold, float diff_in_dist
 
   // Generates reading indefinitely until a termination message is received from base station
   while(1) {
-    // if(isTerminated) break;
+    if(isTerminated) break;
 
     MPI_Iprobe(MPI_ANY_SOURCE, TERMINATION_TAG, world_comm, &flag, &probe_status);
     if(flag == 1) {
