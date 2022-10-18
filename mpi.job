@@ -1,0 +1,25 @@
+#!/bin/bash 
+#SBATCH --job-name=mpi_job 	### job name
+#SBATCH --time=00:1:00		### hh:mm:ss or dd-hh:mm:ss
+#SBATCH --mem=16G		### memory setting is max @ 2 GB per core
+#SBATCH --ntasks=37		### launch 37 mpi processes
+#SBATCH --cpus-per-task=1	### single-threaded processes
+#SBATCH --ntasks-per-node=4	### four per node
+#SBATCH --output=mpi.%j.out
+#SBATCH --partition=defq
+
+module load openmpi-4.1.4-gcc-11.2.0-6z47sq3
+
+if [ ! -f Out ]
+then
+ mpicc activity_3.c activity_1.c activity_2.c helper.c -lm -o Out
+else
+ if [ activity_3.c -nt Out ]
+ then
+  mpicc activity_3.c activity_1.c activity_2.c helper.c -lm -o Out
+ fi
+fi
+
+srun Out 6 6
+
+exit 0
