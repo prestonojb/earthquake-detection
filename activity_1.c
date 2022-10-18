@@ -23,7 +23,7 @@
 #define SHIFT_COL 1
 #define DISP 1
 
-#define READING_INTERVAL_IN_S 5
+#define READING_INTERVAL_IN_S 3
 
 void generateNodeReading(struct Sensor* reading, int rank);
 void printReading(struct Sensor* reading);
@@ -299,7 +299,7 @@ bool areMatchingLocations(float latA, float longA, float latB, float longB) {
 }
 
 bool areMatchingMagnitudes(float magnitudeA, float magnitudeB) {
-  return fabs((double) magnitudeA - magnitudeB) < DIFF_IN_MAGNITUDE_THRESHOLD;
+  return fabs(magnitudeA - magnitudeB) < DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
 }
 
 float distance(float lat1, float lon1, float lat2, float lon2) {

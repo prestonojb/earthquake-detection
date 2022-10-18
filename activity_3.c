@@ -28,14 +28,12 @@ void printColNode(FILE* f, int id, float lat, float lon, float dist, float mag, 
 void* terminationToNodesComm();
 void* recvDataLogFromNodesCommFunc(void* pArg);
 
-float MAGNITUDE_UPPER_THRESHOLD = DEFAULT_MAGNITUDE_UPPER_THRESHOLD;
-float DIFF_IN_DISTANCE_THRESHOLD_IN_KM = DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM;
-float DIFF_IN_MAGNITUDE_THRESHOLD = DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD;
 
 // Shared Balloon sensor readings
 #define SIZE 10
 struct Sensor readings[SIZE];
 pthread_t balloon_comm[2];
+int prev_time = -1;
 
 struct timeval start_time, curr_time;
 
@@ -74,11 +72,11 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (argc == 6) {
+    /*if (argc == 6) {
         MAGNITUDE_UPPER_THRESHOLD = atof(argv[3]);
         DIFF_IN_DISTANCE_THRESHOLD_IN_KM = atof(argv[4]);
         DIFF_IN_MAGNITUDE_THRESHOLD = atof(argv[5]);
-    }
+    }*/
 
     MPI_Comm nodes_comm;
     // Split into base station and sensor nodes
@@ -88,7 +86,7 @@ int main(int argc, char* argv[]) {
         createBalloonPosix(readings);
         update(MPI_COMM_WORLD);
     } else {
-        init_nodes(m, n, MAGNITUDE_UPPER_THRESHOLD, DIFF_IN_DISTANCE_THRESHOLD_IN_KM, DIFF_IN_MAGNITUDE_THRESHOLD, MPI_COMM_WORLD, nodes_comm);
+        init_nodes(m, n, DEFAULT_MAGNITUDE_UPPER_THRESHOLD, DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM, DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD, MPI_COMM_WORLD, nodes_comm);
     }
 
     return 0;
@@ -119,7 +117,7 @@ void generateBalloonReading(struct Sensor* reading)
 
     reading->lat = float_rand(-20, -10);
     reading->lon = float_rand(150, 170);
-    reading->mag = float_rand(MAGNITUDE_UPPER_THRESHOLD, 9);
+    reading->mag = float_rand(DEFAULT_MAGNITUDE_UPPER_THRESHOLD, 5);
     reading->depth = float_rand(4, 10);
 }
 
@@ -152,6 +150,7 @@ void update(MPI_Comm world_comm) {
         struct Sensor balloonReading = readings[finalVal-1];
 
         int conclusive = areMatchingMagnitudes(dataLog.reporterData.mag, balloonReading.mag);
+        printf("match %.2f - %.2f = %.2f: %d\n", dataLog.reporterData.mag, balloonReading.mag, fabs(dataLog.reporterData.mag - balloonReading.mag), conclusive);
 
         saveLog(conclusive, intervalCount, dataLog, balloonReading);
         //printf("Base station logs alert from node %d to log.txt file. \n", dataLog.reporterRank);
@@ -249,6 +248,16 @@ void defineDataLogType(MPI_Datatype* DataLogType, MPI_Datatype SensorType) {
  *        -1: Error
  */
 int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b) {
+    double time_elapsed = (double)(curr_time.tv_usec - start_time.tv_usec) / 1000000 +
+                          (double)(curr_time.tv_sec - start_time.tv_sec);
+
+    // Prevent duplicate timed events
+    if ((int) time_elapsed == prev_time) {
+        //printf("Skipped  %.1f  %d\n", time_elapsed, prev_time);
+        return 0;
+    }
+
+    prev_time = (int) time_elapsed;
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     char* line = "------------------------------------";
@@ -257,9 +266,8 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     if (!f) return 1;
     fprintf(f,"%s\n%s\n", line, line);
 
-    double time_elapsed = (double)(curr_time.tv_usec - start_time.tv_usec) / 1000000 +
-            (double)(curr_time.tv_sec - start_time.tv_sec);
     fprintf(f, "Time Elapsed: %.4fs\n", time_elapsed);
+    printf("Time %f\n", time_elapsed);
 
     fprintf(f, "Logged Time:\t%d:%d:%d  %d-%d-%d\n",
             tm.tm_hour, tm.tm_min, tm.tm_sec,
@@ -307,9 +315,9 @@ int saveLog(int conclusion, int intervalCount, struct DataLog n, struct Sensor b
     float time = tm.tm_sec - s.second;
     //fprintf(f, "Communication Time (in seconds): %.3fs\n", time);
     fprintf(f, "Total messages sent by Node to Base: 1\n");
-    fprintf(f, "Coordinate Threshold: %.2f\n", DIFF_IN_DISTANCE_THRESHOLD_IN_KM);
-    fprintf(f, "Magnitude Difference Threshold: %.2f\n", DIFF_IN_MAGNITUDE_THRESHOLD);
-    fprintf(f, "Earthquake Magnitude Threshold: %.2f\n", MAGNITUDE_UPPER_THRESHOLD);
+    fprintf(f, "Coordinate Threshold: %.2f\n", DEFAULT_DIFF_IN_DISTANCE_THRESHOLD_IN_KM);
+    fprintf(f, "Magnitude Difference Threshold: %.2f\n", DEFAULT_DIFF_IN_MAGNITUDE_THRESHOLD);
+    fprintf(f, "Earthquake Magnitude Threshold: %.2f\n", DEFAULT_MAGNITUDE_UPPER_THRESHOLD);
 
     fprintf(f,"%s\n%s\n\n", line, line);
     fclose(f);
